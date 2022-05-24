@@ -11,6 +11,11 @@
         }
     }
 
+    const handleStaticResourceRequest = function (req, res) {
+        res.writeHead(200, {});
+        res.end('/static access');
+    }
+
     const page404 = function (response) {
         response.writeHead(404, {});
         response.end("Page not found");
@@ -22,15 +27,19 @@
     };
 
     module.exports.handleRequest = function (req, res) {
-        res.setHeader('Content-Type', 'text/html');
-        switch (split_url(req.url)[0]) {
-            case '/':
-                home(req, res);
-                break;
-            default:
-                res.writeHead(301, {Location : '/'});
-                res.end();
-                break;
+        if (req.url.substring(0,8) == '/static/') {
+            handleStaticResourceRequest(req, res);
+        } else {
+            res.setHeader('Content-Type', 'text/html');
+            switch (split_url(req.url)[0]) {
+                case '/':
+                    home(req, res);
+                    break;
+                default:
+                    res.writeHead(301, {Location : '/'});
+                    res.end();
+                    break;
+            }
         }
     }
 }());
