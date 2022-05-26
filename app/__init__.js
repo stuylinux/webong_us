@@ -1,13 +1,20 @@
 const http = require('http');
-const main = require('./main');
+const express = require('express');
+const nunjucks = require('nunjucks');
+
+nunjucks.configure('templates', { autoescape : true });
 
 const port = 5000;
-const ip = 'localhost';
+const app = express();
 
-const server = http.createServer((req, res) => {
-	main.handleRequest(req, res);
+app.get('/', (req, res) => {
+	res.writeHead(200, {'Content-Type' : 'text/html'});
+	res.end(nunjucks.render('index.html'));
 });
 
-server.listen(port, ip, () => {
-	console.log(`Server running at http://${ip}:${port}/`);
+app.use('/static', express.static('static'));
+app.use(express.static('favicon'));
+
+app.listen(port, () => {
+	console.log(`Server running at http://localhost:${port}/`);
 });
