@@ -140,7 +140,10 @@ function nextGameFrame() {
 }
 
 function inPlayerView(px, py, ox, oy, alr) {
-    if (ox == px) {
+    if (ox < 0 || ox >= map[0].length || oy < 0 || oy >= map.length) {
+        return false;
+        
+    } else if (ox == px) {
         while (oy != py) {
             oy += (oy < py) ? 1 : -1;
             if (map[oy][px] == 1) { return false; }
@@ -150,10 +153,6 @@ function inPlayerView(px, py, ox, oy, alr) {
             ox += (ox < px) ? 1 : -1;
             if (map[py][ox] == 1) { return false; }
         }
-    }
-
-    if (ox < 0 || ox >= map[0].length || oy < 0 || oy >= map.length) {
-        return false;
     }
 
     let dy = py - oy;
