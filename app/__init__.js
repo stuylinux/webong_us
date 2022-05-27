@@ -34,7 +34,8 @@ ws_s.on('connection' , (ws) => {
 		'pos' : [-1, -1],
 		'role' : 'crewmate',
 		'kill_cooldown' : -1,
-		'sab_cooldown' : -1
+		'sab_cooldown' : -1,
+		'visible' : true,
 	}
 	clients.set(ws, playerData);
 
@@ -47,19 +48,31 @@ ws_s.on('connection' , (ws) => {
 			playerData['pos'] = [65, 10];
 			playerData['name'] = message.name;
 
-			let cont = true;
+			let namepresent = '';
+			let namepresentdupe = '';
 			clients.forEach((clientData, client, clients) => {
 				//console.log(clientData.name, playerData.name, );
-				if (client != ws && clientData.name == playerData['name'] && cont) {
+				let checkname = '';
+				if (clientData.name.indexOf('(') != -1) {
+					checkname = clientData.name.substring(0, clientData.name.indexOf('('));
+				} else {
+					checkname = clientData.name;
+				}
+				if (client != ws && checkname == playerData['name']) {
 					if (clientData.name.indexOf('(') != -1) {
-						playerData['name'] += "(" + (parseInt(clientData.name.substring(clientData.name.indexOf('(') + 1, clientData.name.indexOf(')'))) + 1)+ ")";
+						namepresentdupe = clientData.name;
 					} else {
-						playerData['name'] += "(2)";
+						namepresent = clientData.name;
 					}
-					cont = false;
 				}
 			});
-			//console.log(playerData);
+			
+			if (namepresentdupe != '') {
+				playerData['name'] += '(' + 
+				(parseInt(namepresentdupe.substring(namepresentdupe.indexOf('(') + 1, namepresentdupe.indexOf(')'))) + 1) + ')';
+			} else if (namepresent != '') {
+				playerData['name'] += '(2)';
+			}
 			if (playerData['name'] != message.name) {
 				ws.send(JSON.stringify({
 					'type' : 'rename',

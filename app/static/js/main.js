@@ -174,16 +174,16 @@ function nextGameFrame() {
     (() => {
     oldPlayerX = playerX;
     oldPlayerY = playerY;
-    if (keyCode == 'W'.charCodeAt(0) && playerY != 0 && map[playerY - 1][playerX] != 1) {
+    if (keyCode == 'W'.charCodeAt(0) && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
         playerY--;
         keyCode = -1;
-    } else if (keyCode == 0x41 && playerX != 0 && map[playerY][playerX - 1] != 1) {
+    } else if (keyCode == 0x41 && playerX != 0 && !inRange(map[playerY][playerX - 1], 1, 2)) {
         playerX--;
         keyCode = -1;
-    } else if (keyCode == 'S'.charCodeAt(0) && playerY != map.length - 1 && map[playerY + 1][playerX] != 1) {
+    } else if (keyCode == 'S'.charCodeAt(0) && playerY != map.length - 1 && !inRange(map[playerY + 1][playerX], 1, 2)) {
         playerY++;
         keyCode = -1;
-    } else if (keyCode == 0x44 && playerX != map[0].length - 1 && map[playerY][playerX + 1] != 1) {
+    } else if (keyCode == 0x44 && playerX != map[0].length - 1 && !inRange(map[playerY][playerX + 1], 1, 2)){
         playerX++;
         keyCode = -1;
     }
@@ -215,7 +215,10 @@ function nextGameFrame() {
             if (map[nxg_j][nxg_i] == 1) {
                 ctx.fillStyle = '#888888';
                 ctx.fillRect((nxg_i - currentScrollX) * 50, (nxg_j - currentScrollY) * 50, tileSize, tileSize);
-            } else if (map[nxg_j][nxg_i] <= -10) {
+            } else if (map[nxg_j][nxg_i] == 2) {
+                ctx.fillStyle =  '#bbbbbb';
+                ctx.fillRect((nxg_i - currentScrollX) * 50, (nxg_j - currentScrollY) * 50, tileSize, tileSize);
+            } else if (map[nxg_j][nxg_i] <= -10 && map[nxg_j][nxg_i] > -20) {
                 ctx.fillStyle = '#3f3f3f';
                 ctx.fillRect((nxg_i - currentScrollX) * 50, (nxg_j - currentScrollY) * 50, tileSize, tileSize);
             }
@@ -227,7 +230,11 @@ function nextGameFrame() {
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
             } else if (!inPlayerView(playerX, playerY, nxg_i + currentScrollX, nxg_j + currentScrollY, true)) {
-                ctx.fillStyle = '#101010';
+                if (map[nxg_j][nxg_i] == 1) {
+                    ctx.fillStyle = '#505050';
+                } else {
+                    ctx.fillStyle = '#101010';
+                }
                 ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
             }
         }   
@@ -235,8 +242,10 @@ function nextGameFrame() {
     drawPlayer(playerX, playerY, currentScrollX, currentScrollY, playerColor, user_name);
 
     for (nxg_i = 0; nxg_i < otherPlayers.length; nxg_i++) {
-        if (inPlayerView(playerX, playerY, otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], false) && 
-            (Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) < playerViewSize)) {
+        if ((Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) < playerViewSize) && 
+            otherPlayers[nxg_i].visible &&
+            inPlayerView(playerX, playerY, otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], false)
+            ) {
             drawPlayer(
                 otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], 
                 currentScrollX, currentScrollY, otherPlayers[nxg_i].color, 
@@ -256,12 +265,12 @@ function inPlayerView(px, py, ox, oy, alr) {
     } else if (ox == px) {
         while (oy != py) {
             oy += (oy < py) ? 1 : -1;
-            if (map[oy][px] == 1) { return false; }
+            if (inRange(map[oy][px], 1, 2)) { return false; }
         }
     } else if (oy == py) {
         while (ox != px) {
             ox += (ox < px) ? 1 : -1;
-            if (map[py][ox] == 1) { return false; }
+            if (inRange(map[py][ox], 1, 2)) { return false; }
         }
     }
 
@@ -277,12 +286,13 @@ function inPlayerView(px, py, ox, oy, alr) {
     while (Math.round(temp_y) != py || Math.round(temp_x) != px) {
         temp_x += dx;
         temp_y += dy;
-        if (map[Math.trunc(Math.round(temp_y))][Math.trunc(Math.round(temp_x))] == 1) {
+        if (inRange(map[Math.trunc(Math.round(temp_y))][Math.trunc(Math.round(temp_x))], 1, 2)) {
             if (alr) {
                 let xdir = dx > 0 ? 1 : -1;
                 let ydir = dy > 0 ? 1 : -1;
-                if (map[oy][ox] == 1 && inPlayerView(px, py, ox + xdir, oy, false)) {return true; }
-                if (map[oy][ox] == 1 && inPlayerView(px, py, ox, oy + ydir, false)) {return true; }
+                if (inRange(map[oy][ox], 1 ,2)) {
+                    return inPlayerView(px, py, ox + xdir, oy, false) | inPlayerView(px, py, ox, oy + ydir, false);
+                }
             }
             return false;
         }
@@ -299,4 +309,8 @@ function drawPlayer(x, y, scrollx, scrolly, color, name) {
     ctx.font = '12px Courier New';
     ctx.fillStyle = '#000000';
     ctx.fillText(name, (x - scrollx) * tileSize + halfTileSize - 4 * user_name.length, (y - scrolly) * tileSize - 5);   
+}
+
+function inRange(x, min, max) {
+    return x >= min && x <= max;
 }
