@@ -46,6 +46,8 @@ function promptName() {
 
 var map = [];
 
+var websocket;
+
 const tileSize = 50;
 const halfTileSize = Math.trunc(tileSize / 2);
 const centerTileOffsetX = Math.trunc(c.clientWidth / tileSize / 2);
@@ -53,13 +55,102 @@ const centerTileOffsetY = Math.trunc(c.clientHeight / tileSize / 2);
 
 var playerX;
 var playerY;
+var playerColor;
 var playerViewSize;
+var playerIsHost;
+var playerRole;
+var playerID;
+var role;
+var kill_cooldown;
+var sab_cooldown;
+var playerCooldowns = Array(2);
 
+var otherPlayers = [];
 
 function startGame() {
-    playerX = playerX = 65;
+    playerX = 65;
     playerY = 10;
-    playerViewSize = 7;
+    playerColor = '#ff0000';
+    playerViewSize = 9;
+    playerCooldowns = [-1, -1];
+
+    websocket = new WebSocket('ws://localhost:47777/');
+    websocket.onopen = (e) => {
+        websocket.send(JSON.stringify({
+            'type' : 'init',
+            'name' : user_name
+        }));
+    }
+    websocket.onmessage = (e) => {
+        const msg = JSON.parse(e.data); 
+        console.log(JSON.stringify(msg));    
+        switch (msg.type) {
+            case 'rename':
+                user_name = msg.newName;
+                break;
+            case 'newplayer':
+                if (msg.player_data.name == user_name) {
+                    [playerX, playerY] = msg.player_data.pos;
+                    playerColor = msg.player_data.color;
+                    playerRole = msg.player_data.role;
+                    playerCooldowns = [msg.player_data.kill_cooldown, msg.player_data.sab_cooldown];
+                } else {
+                    otherPlayers.push(msg.player_data);
+                }
+                break;
+            case 'returnplayers':
+                otherPlayers = [];
+                msg.data.forEach(element => {
+                    if (element.name != user_name) {
+                        otherPlayers.push(element);
+                    }    
+                });
+                
+                break;
+            case 'updateplayer':
+                if (user_name == msg.player_data.name) {
+                    [playerX, playerY] = msg.player_data.pos;
+                    playerColor = msg.player_data.color;
+                } else {
+                    for (let i = 0; i < otherPlayers.length; i++) {
+                        if (otherPlayers[i].name == msg.player_data.name) {
+                            /* 
+                            Update player info
+                            */
+                            otherPlayers[i] = msg.player_data;
+                            break;
+                        }
+                    }
+                }
+                break;
+            case 'deleteplayer':
+                for (let i = 0; i < otherPlayers.length; i++) {
+                    //console.log(otherPlayers[i].name, msg.player_data.name);
+                    //console.log(otherPlayers[i].name == msg.player_data.name);
+                    if (otherPlayers[i].name == msg.player_data.name) {
+                        otherPlayers.splice(i, 1);
+                        break;
+                    }
+                }
+                if (msg.newhost != null) {
+                    if (msg.newhost.name == user_name) {
+                        playerIsHost = true;
+                    } else {
+                        for (let i = 0; i < otherPlayers.length; i++) {
+                            if (otherPlayers[i].name == msg.newhost.name) {
+                                otherPlayers[i].newhost = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                break;  
+            default:
+                console.log('Websocket ??????');
+                console.log(e.data);
+                break;
+        }
+    }
 
     fetch("/static/maps/skeld.json")
     .then(response => {
@@ -76,8 +167,13 @@ var currentScrollX = Math.max(0, playerX - centerTileOffsetX);
 var currentScrollY = Math.max(0, playerX - centerTileOffsetX);
 var nxg_j, nxg_i;
 
+var oldPlayerX;
+var oldPlayerY;
+
 function nextGameFrame() {
     (() => {
+    oldPlayerX = playerX;
+    oldPlayerY = playerY;
     if (keyCode == 'W'.charCodeAt(0) && playerY != 0 && map[playerY - 1][playerX] != 1) {
         playerY--;
         keyCode = -1;
@@ -91,11 +187,18 @@ function nextGameFrame() {
         playerX++;
         keyCode = -1;
     }
-
+    if (playerY != oldPlayerY || playerX != oldPlayerX) {
+        websocket.send(JSON.stringify({
+            'type' : 'update',
+            'data' : {
+                'name' : user_name,
+                'pos' : [playerX, playerY],
+            }
+        }));
+    }
 
     currentScrollX = Math.max(0, playerX - centerTileOffsetX);
     currentScrollY = Math.max(0, playerY - centerTileOffsetY);
-    //ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, c.clientWidth, c.clientHeight);  
     for (nxg_j = 0; nxg_j < map.length; nxg_j++) {
         if (nxg_j < currentScrollY) {
@@ -129,11 +232,18 @@ function nextGameFrame() {
             }
         }   
     }
-    ctx.fillStyle = '#ff0000';
-    //console.log((playerX - currentScrollX) * tileSize + halfTileSize, (playerY - currentScrollY) * tileSize + halfTileSize, halfTileSize, 0, 4 * Math.PI);
-    ctx.beginPath();
-    ctx.arc((playerX - currentScrollX) * tileSize + halfTileSize, (playerY - currentScrollY) * tileSize + halfTileSize, halfTileSize, 0, 2 * Math.PI);
-    ctx.fill();
+    drawPlayer(playerX, playerY, currentScrollX, currentScrollY, playerColor, user_name);
+
+    for (nxg_i = 0; nxg_i < otherPlayers.length; nxg_i++) {
+        if (inPlayerView(playerX, playerY, otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], false) && 
+            (Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) < playerViewSize)) {
+            drawPlayer(
+                otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], 
+                currentScrollX, currentScrollY, otherPlayers[nxg_i].color, 
+                otherPlayers[nxg_i].name
+            );
+        }
+    }
     })();
 
     window.requestAnimationFrame(nextGameFrame);
@@ -181,3 +291,12 @@ function inPlayerView(px, py, ox, oy, alr) {
     return true;
 }
 
+function drawPlayer(x, y, scrollx, scrolly, color, name) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc((x - scrollx) * tileSize + halfTileSize, (y - scrolly) * tileSize + halfTileSize, halfTileSize, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.font = '12px Courier New';
+    ctx.fillStyle = '#000000';
+    ctx.fillText(name, (x - scrollx) * tileSize + halfTileSize - 4 * user_name.length, (y - scrolly) * tileSize - 5);   
+}
