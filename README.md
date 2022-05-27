@@ -7,4 +7,4 @@ $ npm install
 $ node init
 ```
 
-macOS specific: open `app/__init__.js` in your text editor of choice and change `const port = 5000;` to `const port = 8000;`
+macOS 12+ specific: open `app/__init__.js` in your text editor of choice and change `const port = 5000;` to `const port = 8000;`
