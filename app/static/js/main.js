@@ -44,26 +44,31 @@ function promptName() {
     promptNameDraw();
 }
 
-var map = [];
+var map = [[]];
+var vents = [];
 
 var websocket;
 
-const tileSize = 50;
+const tileSize = 30;
 const halfTileSize = Math.trunc(tileSize / 2);
 const centerTileOffsetX = Math.trunc(c.clientWidth / tileSize / 2);
 const centerTileOffsetY = Math.trunc(c.clientHeight / tileSize / 2);
 
+const impostorViewSize = 14;
+const crewmateViewSize = 11;
+
 var playerX;
 var playerY;
+var playerInVent;
 var playerColor;
-var playerViewSize;
 var playerIsHost;
 var playerRole;
+var playerIsAlive;
 var playerID;
 var role;
-var kill_cooldown;
-var sab_cooldown;
 var playerCooldowns = Array(2);
+
+var gameIsStarted = false;
 
 var otherPlayers = [];
 
@@ -71,8 +76,10 @@ function startGame() {
     playerX = 65;
     playerY = 10;
     playerColor = '#ff0000';
-    playerViewSize = 9;
     playerCooldowns = [-1, -1];
+    playerInVent = false;
+    playerIsAlive = true;
+    gameIsStarted = false;
 
     websocket = new WebSocket('ws://localhost:47777/');
     websocket.onopen = (e) => {
@@ -93,7 +100,14 @@ function startGame() {
                     [playerX, playerY] = msg.player_data.pos;
                     playerColor = msg.player_data.color;
                     playerRole = msg.player_data.role;
-                    playerCooldowns = [msg.player_data.kill_cooldown, msg.player_data.sab_cooldown];
+                    playerInVent = msg.player_data.in_vent;
+                    playerCooldowns = msg.player_data.cooldowns;
+                    playerIsHost = msg.player_data.host;
+                    playerIsAlive = msg.player_data.alive;
+                    if (playerIsHost) {
+                        document.getElementById("startGameHolder").innerHTML = '<button id="startGameButton"> Start Game </button>';
+                        document.getElementById("startGameButton").addEventListener('click', requestStartGame);
+                    }
                 } else {
                     otherPlayers.push(msg.player_data);
                 }
@@ -107,10 +121,19 @@ function startGame() {
                 });
                 
                 break;
+            case 'moveplayer':
             case 'updateplayer':
                 if (user_name == msg.player_data.name) {
-                    [playerX, playerY] = msg.player_data.pos;
-                    playerColor = msg.player_data.color;
+                    if (msg.type == 'moveplayer') {
+                        [playerX, playerY] = msg.player_data.pos;
+                        playerColor = msg.player_data.color;
+                        playerInVent = msg.player_data.in_vent;
+                    }
+                    playerRole = msg.player_data.role;
+                    playerIsAlive = msg.player_data.alive;
+                    if (playerRole != 'crewmate') {
+                        playerCooldowns = msg.player_data.cooldowns;
+                    }
                 } else {
                     for (let i = 0; i < otherPlayers.length; i++) {
                         if (otherPlayers[i].name == msg.player_data.name) {
@@ -135,6 +158,12 @@ function startGame() {
                 if (msg.newhost != null) {
                     if (msg.newhost.name == user_name) {
                         playerIsHost = true;
+                        document.getElementById("startGameHolder").innerHTML = '<button id="startGameButton"> Start Game </button>';
+                        if (gameIsStarted) {
+                            document.getElementById("startGameButton").innerHTML = " Game Started !";
+                        } else {
+                            document.getElementById("startGameButton").addEventListener('click', requestStartGame);
+                        }
                     } else {
                         for (let i = 0; i < otherPlayers.length; i++) {
                             if (otherPlayers[i].name == msg.newhost.name) {
@@ -144,7 +173,24 @@ function startGame() {
                         }
                     }
                 }
-                break;  
+                break; 
+            case 'startgame':
+                if (msg.ok == false) {
+                    const button = document.getElementById("startGameButton");
+                    button.innerHTML = msg.message;
+                    button.addEventListener('click', requestStartGame);
+                    setTimeout(() => {
+                        document.getElementById("startGameButton").innerHTML = " Start Game ";
+                    }, 3000);
+                } else {
+                    gameIsStarted = true;
+                    playerRole = msg.new_player_data.role;
+                    playerInVent = msg.new_player_data.in_vent;
+                    [playerX, playerY] = msg.new_player_data.pos;
+                    playerIsAlive = msg.new_player_data.alive;
+                    playerCooldowns = msg.new_player_data.cooldowns;
+                }
+                break;
             default:
                 console.log('Websocket ??????');
                 console.log(e.data);
@@ -158,8 +204,26 @@ function startGame() {
     })
     .then(data => {
         map = data;
-        window.requestAnimationFrame(nextGameFrame);
+
+        fetch("/static/maps/skeld_vents.json")
+        .then(response => {
+        return response.json();
+        })
+        .then(data => {
+            vents = data;
+            window.requestAnimationFrame(nextGameFrame);
+        });
     });
+}
+
+function requestStartGame() {
+    if (typeof(websocket) !== 'undefined') {
+        websocket.send(JSON.stringify({
+            'type' : 'startgame',
+        }));
+        document.getElementById("startGameButton").removeEventListener('click', this);
+        document.getElementById("startGameButton").innerHTML = 'Game started!';
+    }
 }
 
 
@@ -169,37 +233,64 @@ var nxg_j, nxg_i;
 
 var oldPlayerX;
 var oldPlayerY;
+var oldInVent;
 
 function nextGameFrame() {
     (() => {
     oldPlayerX = playerX;
     oldPlayerY = playerY;
-    if (keyCode == 'W'.charCodeAt(0) && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
-        playerY--;
-        keyCode = -1;
-    } else if (keyCode == 0x41 && playerX != 0 && !inRange(map[playerY][playerX - 1], 1, 2)) {
-        playerX--;
-        keyCode = -1;
-    } else if (keyCode == 'S'.charCodeAt(0) && playerY != map.length - 1 && !inRange(map[playerY + 1][playerX], 1, 2)) {
-        playerY++;
-        keyCode = -1;
-    } else if (keyCode == 0x44 && playerX != map[0].length - 1 && !inRange(map[playerY][playerX + 1], 1, 2)){
-        playerX++;
-        keyCode = -1;
+    oldInVent = playerInVent;
+    if (oldInVent === false) {
+        if (keyCode == 0x57 /* W */ && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
+            playerY--;
+            keyCode = -1;
+        } else if (keyCode == 0x41 /* A */ && playerX != 0 && !inRange(map[playerY][playerX - 1], 1, 2)) {
+            playerX--;
+            keyCode = -1;
+        } else if (keyCode == 0x53 /* S */ && playerY != map.length - 1 && !inRange(map[playerY + 1][playerX], 1, 2)) {
+            playerY++;
+            keyCode = -1;
+        } else if (keyCode == 0x44 /* D */ && playerX != map[0].length - 1 && !inRange(map[playerY][playerX + 1], 1, 2)){
+            playerX++;
+            keyCode = -1;
+        } else if (keyCode == 73 /* I */ && playerRole == 'impostor' && inRange(map[playerY][playerX], -10, -19)) {
+            //console.log('I pressed');
+            playerInVent = true;
+            keyCode = -1;
+        }
+    } else {
+        if (keyCode == 73 /* I */) {
+            playerInVent = false;
+            keyCode = -1;
+        } else if (keyCode == 0x41 /* A */ || keyCode == 0x44 /* D */) {
+            let vent_class = -10 - map[playerY][playerX];
+            let d = keyCode = 0x44 ? 1 : -1; // Direction of vent cycling
+            let vcl = vents[vent_class].length;
+            for (let i = 0; i < vcl; i++) {
+                if (vents[vent_class][i][0] == playerX && vents[vent_class][i][1] == playerY) {
+                    [playerX, playerY] = vents[vent_class][(i + d) % vcl];
+                    break;
+                }
+            }
+            keyCode = -1;
+        }
     }
-    if (playerY != oldPlayerY || playerX != oldPlayerX) {
+
+    if (playerY != oldPlayerY || playerX != oldPlayerX || playerInVent != oldInVent) {
         websocket.send(JSON.stringify({
             'type' : 'update',
             'data' : {
                 'name' : user_name,
                 'pos' : [playerX, playerY],
+                'in_vent' : playerInVent,
             }
         }));
     }
 
     currentScrollX = Math.max(0, playerX - centerTileOffsetX);
     currentScrollY = Math.max(0, playerY - centerTileOffsetY);
-    ctx.clearRect(0, 0, c.clientWidth, c.clientHeight);  
+    ctx.clearRect(0, 0, c.clientWidth, c.clientHeight); 
+    // Draw tiles onto canvas 
     for (nxg_j = 0; nxg_j < map.length; nxg_j++) {
         if (nxg_j < currentScrollY) {
             continue;
@@ -214,36 +305,36 @@ function nextGameFrame() {
             }
             if (map[nxg_j][nxg_i] == 1) {
                 ctx.fillStyle = '#888888';
-                ctx.fillRect((nxg_i - currentScrollX) * 50, (nxg_j - currentScrollY) * 50, tileSize, tileSize);
+                ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
             } else if (map[nxg_j][nxg_i] == 2) {
                 ctx.fillStyle =  '#bbbbbb';
-                ctx.fillRect((nxg_i - currentScrollX) * 50, (nxg_j - currentScrollY) * 50, tileSize, tileSize);
+                ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
             } else if (map[nxg_j][nxg_i] <= -10 && map[nxg_j][nxg_i] > -20) {
                 ctx.fillStyle = '#3f3f3f';
-                ctx.fillRect((nxg_i - currentScrollX) * 50, (nxg_j - currentScrollY) * 50, tileSize, tileSize);
+                ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
             }
         }
     }
+    // Black out area's beyond character vision
     for (nxg_j = 0; nxg_j < c.clientHeight / tileSize; nxg_j++) {
         for (nxg_i = 0; nxg_i < c.clientWidth / tileSize; nxg_i++) {
-            if (Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > playerViewSize) {
+            if (Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) {
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
             } else if (!inPlayerView(playerX, playerY, nxg_i + currentScrollX, nxg_j + currentScrollY, true)) {
-                if (map[nxg_j][nxg_i] == 1) {
-                    ctx.fillStyle = '#505050';
-                } else {
-                    ctx.fillStyle = '#101010';
-                }
+                ctx.fillStyle = '#101010';
                 ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
             }
         }   
     }
     drawPlayer(playerX, playerY, currentScrollX, currentScrollY, playerColor, user_name);
+    // Shade player if they are in vent
+    if (playerInVent) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(0, 0, 0, 0.5)', ''); }
 
+    // Draw other visible players
     for (nxg_i = 0; nxg_i < otherPlayers.length; nxg_i++) {
-        if ((Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) < playerViewSize) && 
-            otherPlayers[nxg_i].visible &&
+        if ((Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) < (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) && 
+            otherPlayers[nxg_i].alive && !otherPlayers[nxg_i].in_vent &&
             inPlayerView(playerX, playerY, otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], false)
             ) {
             drawPlayer(
@@ -311,6 +402,6 @@ function drawPlayer(x, y, scrollx, scrolly, color, name) {
     ctx.fillText(name, (x - scrollx) * tileSize + halfTileSize - 4 * user_name.length, (y - scrolly) * tileSize - 5);   
 }
 
-function inRange(x, min, max) {
-    return x >= min && x <= max;
+function inRange(x, a, b) {
+    return x >= Math.min(a,b) && x <= Math.max(a,b);
 }
