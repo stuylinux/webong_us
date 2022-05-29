@@ -44,10 +44,13 @@ function promptName() {
     promptNameDraw();
 }
 
+var mapRequested = false;
 var map = [[]];
 var vents = [];
 
 var websocket;
+
+var globalTimer; 
 
 const tileSize = 30;
 const halfTileSize = Math.trunc(tileSize / 2);
@@ -56,6 +59,8 @@ const centerTileOffsetY = Math.trunc(c.clientHeight / tileSize / 2);
 
 const impostorViewSize = 14;
 const crewmateViewSize = 11;
+
+const moveSpeed = 4;
 
 var playerX;
 var playerY;
@@ -73,6 +78,7 @@ var gameIsStarted = false;
 var otherPlayers = [];
 
 function startGame() {
+    globalTimer = 0;
     playerX = 65;
     playerY = 10;
     playerColor = '#ff0000';
@@ -82,13 +88,18 @@ function startGame() {
     gameIsStarted = false;
 
     websocket = new WebSocket('ws://localhost:47777/');
-    websocket.onopen = (e) => {
+	websocket.onopen = (e) => {
         websocket.send(JSON.stringify({
             'type' : 'init',
             'name' : user_name
         }));
-    }
+    };
     websocket.onmessage = (e) => {
+		if (mapRequested === false) {
+			mapRequested = true;
+			fetchMap();
+		}
+		
         const msg = JSON.parse(e.data); 
         console.log(JSON.stringify(msg));    
         switch (msg.type) {
@@ -196,9 +207,11 @@ function startGame() {
                 console.log(e.data);
                 break;
         }
-    }
+    };
+}
 
-    fetch("/static/maps/skeld.json")
+function fetchMap() {
+	fetch("/static/maps/skeld.json")
     .then(response => {
     return response.json();
     })
@@ -241,19 +254,21 @@ function nextGameFrame() {
     oldPlayerY = playerY;
     oldInVent = playerInVent;
     if (oldInVent === false) {
-        if (keyCode == 0x57 /* W */ && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
-            playerY--;
-            keyCode = -1;
-        } else if (keyCode == 0x41 /* A */ && playerX != 0 && !inRange(map[playerY][playerX - 1], 1, 2)) {
-            playerX--;
-            keyCode = -1;
-        } else if (keyCode == 0x53 /* S */ && playerY != map.length - 1 && !inRange(map[playerY + 1][playerX], 1, 2)) {
-            playerY++;
-            keyCode = -1;
-        } else if (keyCode == 0x44 /* D */ && playerX != map[0].length - 1 && !inRange(map[playerY][playerX + 1], 1, 2)){
-            playerX++;
-            keyCode = -1;
-        } else if (keyCode == 73 /* I */ && playerRole == 'impostor' && inRange(map[playerY][playerX], -10, -19)) {
+		if (globalTimer % moveSpeed == 0) {
+			if (keyCode == 0x57 /* W */ && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
+				playerY--;
+				keyCode = -1;
+			} else if (keyCode == 0x41 /* A */ && playerX != 0 && !inRange(map[playerY][playerX - 1], 1, 2)) {
+				playerX--;
+				keyCode = -1;
+			} else if (keyCode == 0x53 /* S */ && playerY != map.length - 1 && !inRange(map[playerY + 1][playerX], 1, 2)) {
+				playerY++;
+				keyCode = -1;
+			} else if (keyCode == 0x44 /* D */ && playerX != map[0].length - 1 && !inRange(map[playerY][playerX + 1], 1, 2)){
+				playerX++;
+				keyCode = -1;
+			} 
+		} else if (keyCode == 73 /* I */ && playerRole == 'impostor' && inRange(map[playerY][playerX], -10, -19)) {
             //console.log('I pressed');
             playerInVent = true;
             keyCode = -1;
@@ -346,6 +361,7 @@ function nextGameFrame() {
     }
     })();
 
+	globalTimer++;
     window.requestAnimationFrame(nextGameFrame);
 }
 
