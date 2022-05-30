@@ -62,7 +62,7 @@ const crewmateViewSize = 11;
 
 const moveSpeed = 4;
 
-const taskRooms = {
+const taskRooms = [
 	"",
 	"",
 	"",
@@ -79,7 +79,7 @@ const taskRooms = {
 	"Weapons",
 	"Cafeteria",
 	"Comms"
-};
+];
 const numOfTasks = 6;
 var taskList;
 
@@ -249,7 +249,7 @@ function fetchMap() {
         return response.json();
         })
         .then(data => {
-            vents = data;
+            mapdata = data;
             window.requestAnimationFrame(nextGameFrame);
         });
     });

@@ -22,7 +22,7 @@ file_put_contents("map.json", $output);
 
 $array = json_decode($output, true);
 
-$checks = ['tasks', -10,-11,-12,-13,-14,-15,-16,-17,18,-19];
+$checks = ['tasks', -10,-11,-12,-13,-14,-15,-16,-17,-18,-19];
 
 $put2 = "{";
 foreach ($checks as $vent) {
