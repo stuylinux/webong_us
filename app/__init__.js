@@ -119,6 +119,48 @@ ws_s.on('connection' , (ws) => {
 					})); 
 				}
 			});
+		} else if (message.type == 'gameaction') {
+			switch(message.actiontype) {
+				case 'tasksdone':
+					let clientData = clients.get(ws);
+					clientData.tasksdone = true;
+					clients.set(ws,data);
+					break;
+				case 'kill':
+					let deadplayername = message.player_data.name;
+					let killerData = clients.get(ws);
+					killerData.cooldowns[1] = 35;
+					/* 
+						Set dead player to dead, update each client with that fact, then create body
+					*/
+					clients.set(ws, killerData);
+					let found = false;
+					clients.forEach((cData, client, clients) => {
+						if (found === false && cData.name == deadplayername) {							
+							cData.alive = false;
+							clients.set(client, cData);
+							found = cData;
+						}
+					});
+					if (found !== false) {
+						const deadUpdateToSend = JSON.stringify({
+							'type' : 'updateplayer',
+							'player_data' : found,
+						});
+						const bodyMessage = JSON.stringify({
+							'type' : 'newbody',
+							'body' : {
+								'pos' : found.pos,
+								'color' : found.color,
+								'name' : found.name
+							}
+						});
+						clients.forEach((cData, client, clients) => {
+							client.send(deadUpdateToSend);
+							client.send(bodyMessage);
+						});
+					}
+			}
 		} else if (message.type == 'startgame') {
 			let clientData = clients.get(ws);
 			if (clientData.host && !gameIsStarted /*&& clients.size >= 4*/) {

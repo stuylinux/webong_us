@@ -107,6 +107,8 @@ var gameIsStarted = false;
 
 var otherPlayers = [];
 
+var deadBodies = [];
+
 function startGame() {
     globalTimer = 0;
     playerX = 65;
@@ -187,6 +189,9 @@ function startGame() {
                     }
                 }
                 break;
+			case 'newbody':
+				deadBodies.push(msg.body);
+				break;
             case 'deleteplayer':
                 for (let i = 0; i < otherPlayers.length; i++) {
                     //console.log(otherPlayers[i].name, msg.player_data.name);
@@ -250,6 +255,10 @@ function startGame() {
 							
 						}
 						document.getElementById("uiHolder").appendChild(taskHTMLList);
+					} else {
+						const cooldownDiv = document.createElement('div');
+						cooldownDiv.innerHTML = "Kill Cooldown: <span id='killCooldown'></span><br>Sabotage Cooldown: <span id='sabotageCooldown'></span>";
+						document.getElementById("uiHolder").appendChild(cooldownDiv);
 					}
 					
                 }
@@ -300,8 +309,16 @@ var oldPlayerX = -1;
 var oldPlayerY = -1;
 var oldInVent = false;
 
+
 function nextGameFrame() {
-    (() => {
+	doFrameWork();
+
+	globalTimer++;
+    window.requestAnimationFrame(nextGameFrame);
+}
+
+function doFrameWork() {
+	// Check keyboard input
     if (oldInVent === false) {
 		if (globalTimer % moveSpeed == 0) {
 			if (keyCode == 0x57 /* W */ && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
@@ -321,7 +338,22 @@ function nextGameFrame() {
             //console.log('I pressed');
             playerInVent = true;
             keyCode = -1;
-        } else if (keyCode == 73 && playerRole == 'crewmate' && inRange(map[playerY][playerX], 3, 15)) {
+        } else if (keyCode == 79 /* O */ && playerRole == 'impostor' && playerCooldowns[1] == 0) {
+			for (let i = 0; i < otherPlayers.length; i++) {
+				if (distanceFromPlayer(otherPlayers[i]) <= 1 && otherPlayers[i].role == 'crewmate') {
+					websocket.send(JSON.stringify({
+						'type' : 'gameaction',
+						'actiontype' : 'kill',
+						'player_data' : otherPlayers[i],
+					}));
+					[playerX, playerY] = otherPlayers[i].pos;
+					otherPlayers[i].alive = false;
+					playerCooldowns[1] = 35;
+					break;
+				}
+			}
+			keyCode = -1;
+		} else if (keyCode == 73 /* I */ && playerRole == 'crewmate' && inRange(map[playerY][playerX], 3, 16)) {
 			if (checkInTaskList(playerX, playerY) !== false) {
 				console.log("task");
 				taskTimer = 5;
@@ -367,6 +399,7 @@ function nextGameFrame() {
     oldPlayerY = playerY;
     oldInVent = playerInVent;
 
+	// Calc scroll vars 
     currentScrollX = Math.max(0, playerX - centerTileOffsetX);
     currentScrollY = Math.max(0, playerY - centerTileOffsetY);
     ctx.clearRect(0, 0, c.clientWidth, c.clientHeight); 
@@ -392,7 +425,7 @@ function nextGameFrame() {
             } else if (inRange(map[nxg_j][nxg_i], -10, -19)) {
                 ctx.fillStyle = '#3f3f3f';
                 ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
-            } else if (gameIsStarted && playerRole == 'crewmate' && inRange(map[nxg_j][nxg_i], 3, 15) && checkInTaskList(nxg_i, nxg_j) !== false) {
+            } else if (gameIsStarted && playerRole == 'crewmate' && inRange(map[nxg_j][nxg_i], 3, 16) && checkInTaskList(nxg_i, nxg_j) !== false) {
 				ctx.fillStyle = '#ffff00';
 				ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
 			}				
@@ -410,10 +443,18 @@ function nextGameFrame() {
             }
         }   
     }
-    drawPlayer(playerX, playerY, currentScrollX, currentScrollY, playerColor, user_name);
-    // Shade player if they are in vent
-    if (playerInVent) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(0, 0, 0, 0.5)', ''); }
-
+	
+	// Draw any dead bodies 
+	for (nxg_i = 0; nxg_i < deadBodies.length; nxg_i++) {
+		if ((Math.abs(playerX - deadBodies[nxg_i].pos[0]) + Math.abs(playerY - deadBodies[nxg_i].pos[1]) < (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) &&
+            inPlayerView(playerX, playerY, deadBodies[nxg_i].pos[0], deadBodies[nxg_i].pos[1], false)
+            ) {
+            drawBody(
+                deadBodies[nxg_i].pos[0], deadBodies[nxg_i].pos[1], 
+                currentScrollX, currentScrollY, deadBodies[nxg_i].color, 
+            );
+        }
+    }
     // Draw other visible players
     for (nxg_i = 0; nxg_i < otherPlayers.length; nxg_i++) {
         if ((Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) < (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) && 
@@ -427,19 +468,37 @@ function nextGameFrame() {
             );
         }
     }
-    })();
-
+	
+	// Draw player
+    drawPlayer(playerX, playerY, currentScrollX, currentScrollY, playerColor, user_name);
+    // Shade player if they are in vent
+    if (playerInVent) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(0, 0, 0, 0.5)', ''); }
+	// If player is dead, draw them lighter
+	if (!playerIsAlive) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(255, 255, 255, 0.5)', ''); }
+	
+	// Draw tablet if player is doing task
+	// If impostor, show cooldowns on side ui
 	if (playerRole == 'crewmate' && taskInterval !== -1) {
 		ctx.fillStyle = "#404040";
 		ctx.fillRect(c.clientWidth / 8, c.clientHeight / 8, c.clientWidth * 6 / 8, c.clientHeight * 6 / 8);
-		const string = "Doing task... " + (taskTimer + 1);
+		const string = "Doing task... " + taskTimer;
 		ctx.font = "32px Courier New";
 		ctx.fillStyle = '#ffffff';
 		ctx.fillText(string, c.clientWidth / 2 - string.length * 10, c.clientHeight / 2 - 10);
+	} else if (playerRole == 'impostor') {
+		if (document.getElementById('sabotageCooldown') != null) {
+			if (playerIsAlive) {
+				document.getElementById('sabotageCooldown').textContent = playerCooldowns[0];
+				document.getElementById('killCooldown').textContent = playerCooldowns[1];
+			} else {
+				document.getElementById("uiHolder").innerHTML = "";	
+			}
+		}
 	}
+}
 
-	globalTimer++;
-    window.requestAnimationFrame(nextGameFrame);
+function distanceFromPlayer(player) {
+	return Math.abs(playerX - player.pos[0]) + Math.abs(playerY - player.pos[1]);
 }
 
 function taskIntervalFunction() {
@@ -448,12 +507,22 @@ function taskIntervalFunction() {
 		taskInterval = -1;
 		return;
 	}
-	if (taskTimer-- <= 0) {
+	if (--taskTimer <= 0) {
 		taskList[currentTaskIndex][1] = true;
 		console.log('task done!');
 		document.getElementById("taskList").removeChild(document.getElementById("gen-task" + currentTaskIndex));
 		clearInterval(taskInterval);
 		taskInterval = -1;
+		
+		for (let i = 0; i < taskList.length; i++) {
+			if (taskList[i][1] == false) {
+				return;
+			}
+		}
+		websocket.send(JSON.stringify({
+			'type' : 'gameaction',
+			'actiontype' : 'tasksdone',
+		}));
 	}
 }
 
@@ -507,6 +576,13 @@ function inPlayerView(px, py, ox, oy, alr) {
     }
     
     return true;
+}
+
+function drawBody(x, y, scrollx, scrolly, color) {
+	ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse((x - scrollx) * tileSize + halfTileSize, (y - scrolly) * tileSize + halfTileSize, halfTileSize * 1.25, halfTileSize * 0.75, 0, 0, 2 * Math.PI);
+    ctx.fill();
 }
 
 function drawPlayer(x, y, scrollx, scrolly, color, name) {
