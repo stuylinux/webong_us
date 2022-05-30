@@ -30,7 +30,7 @@ foreach ($checks as $vent) {
 	$alr = false;
 	for ($j = 0; $j < count($array); $j++) {
 		for ($i = 0; $i < count($array[0]); $i++) {
-			if ($vent <= -10 ? ($array[$j][$i] == $vent) : ($array[$j][$i] >= 3 && $array[$j][$i] <= 15)) {
+			if ($vent <= -10 ? ($array[$j][$i] == $vent) : ($array[$j][$i] >= 3 && $array[$j][$i] <= 16)) {
 				if ($alr) { $put2 .= ",";}
 				$put2 .= "[" . $i . ',' . $j . "]";
 				$alr = true;

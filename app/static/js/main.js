@@ -11,6 +11,10 @@ window.addEventListener('keydown', (e) => {
     keyCode = e.keyCode;
 });
 
+function randInt(maxexcl) {
+	return Math.trunc(Math.random() * maxexcl);
+}
+
 var user_name;
 function promptNameDraw() {
     if (user_name.length < 20 && ((keyCode >= 0x30 && keyCode <= 0x39) || 
@@ -78,7 +82,8 @@ const taskRooms = [
 	"Navigation",
 	"Weapons",
 	"Cafeteria",
-	"Comms"
+	"Comms",
+	"Medbay",
 ];
 const numOfTasks = 6;
 var taskList;
@@ -93,6 +98,10 @@ var playerIsAlive;
 var playerID;
 var role;
 var playerCooldowns = Array(2);
+
+var taskInterval = -1;
+var taskTimer;
+var currentTaskIndex;
 
 var gameIsStarted = false;
 
@@ -222,8 +231,25 @@ function startGame() {
                     playerIsAlive = msg.new_player_data.alive;
                     playerCooldowns = msg.new_player_data.cooldowns;
 					
-					for (let i = 0; i < numOfTasks; i++) {
-						taskList.push([, false]);
+					if (playerRole == 'crewmate') {
+						const allTasks = mapdata['tasks'];
+						const taskHTMLList = document.createElement('ul');
+						taskHTMLList.id = "taskList";
+						taskList = [];
+						for (let i = 0; i < numOfTasks; i++) {
+							const rand_task = allTasks[randInt(allTasks.length)];
+							if (checkInTaskList(rand_task[0], rand_task[1])) {
+								i--;
+								continue;
+							}
+							taskList.push([rand_task, false]);
+							const taskElement = document.createElement('li');
+							taskElement.id = "gen-task" + i;
+							taskElement.textContent = taskRooms[ map[ rand_task[1] ][ rand_task[0] ] ];
+							taskHTMLList.appendChild(taskElement);
+							
+						}
+						document.getElementById("uiHolder").appendChild(taskHTMLList);
 					}
 					
                 }
@@ -270,15 +296,12 @@ var currentScrollX = Math.max(0, playerX - centerTileOffsetX);
 var currentScrollY = Math.max(0, playerX - centerTileOffsetX);
 var nxg_j, nxg_i;
 
-var oldPlayerX;
-var oldPlayerY;
-var oldInVent;
+var oldPlayerX = -1;
+var oldPlayerY = -1;
+var oldInVent = false;
 
 function nextGameFrame() {
     (() => {
-    oldPlayerX = playerX;
-    oldPlayerY = playerY;
-    oldInVent = playerInVent;
     if (oldInVent === false) {
 		if (globalTimer % moveSpeed == 0) {
 			if (keyCode == 0x57 /* W */ && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
@@ -298,7 +321,15 @@ function nextGameFrame() {
             //console.log('I pressed');
             playerInVent = true;
             keyCode = -1;
-        }
+        } else if (keyCode == 73 && playerRole == 'crewmate' && inRange(map[playerY][playerX], 3, 15)) {
+			if (checkInTaskList(playerX, playerY) !== false) {
+				console.log("task");
+				taskTimer = 5;
+				currentTaskIndex = checkInTaskList(playerX, playerY);
+				taskInterval = setInterval(taskIntervalFunction, 1000);
+				keyCode = -1;
+			}
+		}
     } else {
         if (keyCode == 73 /* I */) {
             playerInVent = false;
@@ -306,10 +337,10 @@ function nextGameFrame() {
         } else if (keyCode == 0x41 /* A */ || keyCode == 0x44 /* D */) {
             let vent_class = map[playerY][playerX];
             let d = keyCode = 0x44 ? 1 : -1; // Direction of vent cycling
-            let vcl = map_data[vent_class].length;
+            let vcl = mapdata[vent_class].length;
             for (let i = 0; i < vcl; i++) {
-                if (map_data[vent_class][i][0] == playerX && map_data[vent_class][i][1] == playerY) {
-                    [playerX, playerY] = map_data[vent_class][(i + d) % vcl];
+                if (mapdata[vent_class][i][0] == playerX && mapdata[vent_class][i][1] == playerY) {
+                    [playerX, playerY] = mapdata[vent_class][(i + d) % vcl];
                     break;
                 }
             }
@@ -318,6 +349,11 @@ function nextGameFrame() {
     }
 
     if (playerY != oldPlayerY || playerX != oldPlayerX || playerInVent != oldInVent) {
+		if (playerRole == 'crewmate') {
+			clearInterval(taskInterval);
+			taskInterval = -1;
+			//taskTimer = 5;
+		}
         websocket.send(JSON.stringify({
             'type' : 'update',
             'data' : {
@@ -327,6 +363,9 @@ function nextGameFrame() {
             }
         }));
     }
+	oldPlayerX = playerX;
+    oldPlayerY = playerY;
+    oldInVent = playerInVent;
 
     currentScrollX = Math.max(0, playerX - centerTileOffsetX);
     currentScrollY = Math.max(0, playerY - centerTileOffsetY);
@@ -350,10 +389,13 @@ function nextGameFrame() {
             } else if (map[nxg_j][nxg_i] == 2) {
                 ctx.fillStyle =  '#bbbbbb';
                 ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
-            } else if (map[nxg_j][nxg_i] <= -10 && map[nxg_j][nxg_i] > -20) {
+            } else if (inRange(map[nxg_j][nxg_i], -10, -19)) {
                 ctx.fillStyle = '#3f3f3f';
                 ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
-            }
+            } else if (gameIsStarted && playerRole == 'crewmate' && inRange(map[nxg_j][nxg_i], 3, 15) && checkInTaskList(nxg_i, nxg_j) !== false) {
+				ctx.fillStyle = '#ffff00';
+				ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
+			}				
         }
     }
     // Black out area's beyond character vision
@@ -387,8 +429,41 @@ function nextGameFrame() {
     }
     })();
 
+	if (playerRole == 'crewmate' && taskInterval !== -1) {
+		ctx.fillStyle = "#404040";
+		ctx.fillRect(c.clientWidth / 8, c.clientHeight / 8, c.clientWidth * 6 / 8, c.clientHeight * 6 / 8);
+		const string = "Doing task... " + (taskTimer + 1);
+		ctx.font = "32px Courier New";
+		ctx.fillStyle = '#ffffff';
+		ctx.fillText(string, c.clientWidth / 2 - string.length * 10, c.clientHeight / 2 - 10);
+	}
+
 	globalTimer++;
     window.requestAnimationFrame(nextGameFrame);
+}
+
+function taskIntervalFunction() {
+	if (playerIsAlive == false) {
+		clearInterval(taskInterval);
+		taskInterval = -1;
+		return;
+	}
+	if (taskTimer-- <= 0) {
+		taskList[currentTaskIndex][1] = true;
+		console.log('task done!');
+		document.getElementById("taskList").removeChild(document.getElementById("gen-task" + currentTaskIndex));
+		clearInterval(taskInterval);
+		taskInterval = -1;
+	}
+}
+
+function checkInTaskList(x, y) {
+	for (let i = 0; i < taskList.length; i++) {
+		if (taskList[i][1] == false && taskList[i][0][0] == x && taskList[i][0][1] == y) {
+			return i;
+		}
+	}
+	return false;
 }
 
 function inPlayerView(px, py, ox, oy, alr) {
