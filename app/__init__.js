@@ -40,6 +40,7 @@ ws_s.on('connection' , (ws) => {
 		'cooldowns' : [-1, -1],
 		'in_vent' : false,
 		'alive' : true,
+		'tasksdone' : false,
 	}
 	clients.set(ws, playerData);
 
@@ -126,6 +127,8 @@ ws_s.on('connection' , (ws) => {
 				let clientsArray = [];
 				clients.forEach((clientData, client, clients) => {
 					clientData.role = 'crewmate';
+					clientData.alive = true;
+					clientData.tasksdone = false;
 					clientsArray.push([clientData, client]);
 				});
 
@@ -133,6 +136,7 @@ ws_s.on('connection' , (ws) => {
 					let clientData = clientsArray[impostorIndexes[i]][0];
 					let client = clientsArray[impostorIndexes[i]][1];
 					clientData.role = 'impostor';
+					clientData.tasksdone = true;
 					clientData.cooldowns[0] = 25;
 					clientData.cooldowns[1] = 35;
 					//console.log(clientData);

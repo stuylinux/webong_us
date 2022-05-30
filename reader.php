@@ -22,9 +22,11 @@ file_put_contents("map.json", $output);
 
 $array = json_decode($output, true);
 
-$put2 = "[";
-for ($vent = -10; $vent >= -19; $vent--) {
-	$put2 .= "[";
+$checks = [3,4,5,6,7,8,9,10,11,12,13,14,15, -10,-11,-12,-13,-14,-15,-16,-17,18,-19];
+
+$put2 = "{";
+foreach ($checks as $vent) {
+	$put2 .= "\"$vent\" : [";
 	$alr = false;
 	for ($j = 0; $j < count($array); $j++) {
 		for ($i = 0; $i < count($array[0]); $i++) {
@@ -37,5 +39,5 @@ for ($vent = -10; $vent >= -19; $vent--) {
 	}
 	$put2 .= "]" . ($vent == -19 ? '' : ',') . "\n";
 }
-$put2 .= "]";
-file_put_contents("map_vents.json", $put2);
+$put2 .= "}";
+file_put_contents("map_extras.json", $put2);

@@ -46,7 +46,7 @@ function promptName() {
 
 var mapRequested = false;
 var map = [[]];
-var vents = [];
+var mapdata = [];
 
 var websocket;
 
@@ -61,6 +61,27 @@ const impostorViewSize = 14;
 const crewmateViewSize = 11;
 
 const moveSpeed = 4;
+
+const taskRooms = {
+	"",
+	"",
+	"",
+	"Upper Engine",
+	"Reactor",
+	"Security",
+	"Lower Engine",
+	"Electrical",
+	"Storage",
+	"Shields",
+	"Admin",
+	"O2",
+	"Navigation",
+	"Weapons",
+	"Cafeteria",
+	"Comms"
+};
+const numOfTasks = 6;
+var taskList;
 
 var playerX;
 var playerY;
@@ -200,6 +221,11 @@ function startGame() {
                     [playerX, playerY] = msg.new_player_data.pos;
                     playerIsAlive = msg.new_player_data.alive;
                     playerCooldowns = msg.new_player_data.cooldowns;
+					
+					for (let i = 0; i < numOfTasks; i++) {
+						taskList.push([, false]);
+					}
+					
                 }
                 break;
             default:
@@ -218,7 +244,7 @@ function fetchMap() {
     .then(data => {
         map = data;
 
-        fetch("/static/maps/skeld_vents.json")
+        fetch("/static/maps/skeld_extras.json")
         .then(response => {
         return response.json();
         })
@@ -278,12 +304,12 @@ function nextGameFrame() {
             playerInVent = false;
             keyCode = -1;
         } else if (keyCode == 0x41 /* A */ || keyCode == 0x44 /* D */) {
-            let vent_class = -10 - map[playerY][playerX];
+            let vent_class = map[playerY][playerX];
             let d = keyCode = 0x44 ? 1 : -1; // Direction of vent cycling
-            let vcl = vents[vent_class].length;
+            let vcl = map_data[vent_class].length;
             for (let i = 0; i < vcl; i++) {
-                if (vents[vent_class][i][0] == playerX && vents[vent_class][i][1] == playerY) {
-                    [playerX, playerY] = vents[vent_class][(i + d) % vcl];
+                if (map_data[vent_class][i][0] == playerX && map_data[vent_class][i][1] == playerY) {
+                    [playerX, playerY] = map_data[vent_class][(i + d) % vcl];
                     break;
                 }
             }
