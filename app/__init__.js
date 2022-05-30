@@ -134,7 +134,7 @@ ws_s.on('connection' , (ws) => {
 						Set dead player to dead, update each client with that fact, then create body
 					*/
 					clients.set(ws, killerData);
-					let found = false;
+					let found = false;					
 					clients.forEach((cData, client, clients) => {
 						if (found === false && cData.name == deadplayername) {							
 							cData.alive = false;
@@ -142,7 +142,21 @@ ws_s.on('connection' , (ws) => {
 							found = cData;
 						}
 					});
+					// If murdered player exists, kill them
 					if (found !== false) {
+						let crewmatesAlive = 0;
+						let numImpostors = 0;
+						clients.forEach((cData, client, clients) => {
+							if (cData.alive == true && cData.role == 'crewmate') {
+								crewmatesAlive++;
+							} else if (cData.alive == true && cData.role == 'impostor') {
+								numImpostors++;
+							}
+						});
+						const gameOverMessage = JSON.stringify({
+							'type' : 'gameover',
+							'winner' : 'impostor',
+						});						
 						const deadUpdateToSend = JSON.stringify({
 							'type' : 'updateplayer',
 							'player_data' : found,
@@ -157,7 +171,11 @@ ws_s.on('connection' , (ws) => {
 						});
 						clients.forEach((cData, client, clients) => {
 							client.send(deadUpdateToSend);
-							client.send(bodyMessage);
+							if (numImpostors >= crewmatesAlive) {
+								client.send(gameOverMessage);
+							} else {
+								client.send(bodyMessage);
+							}
 						});
 					}
 			}

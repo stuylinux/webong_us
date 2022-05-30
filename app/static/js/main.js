@@ -104,6 +104,8 @@ var taskTimer;
 var currentTaskIndex;
 
 var gameIsStarted = false;
+var winningTeam = false;
+var winningPlayersList;
 
 var otherPlayers = [];
 
@@ -123,7 +125,7 @@ function startGame() {
 	websocket.onopen = (e) => {
         websocket.send(JSON.stringify({
             'type' : 'init',
-            'name' : user_name
+            'name' : user_name,
         }));
     };
     websocket.onmessage = (e) => {
@@ -263,6 +265,21 @@ function startGame() {
 					
                 }
                 break;
+			case 'gameover':
+				window.cancelAnimationFrame(requestID);
+				winningTeam = msg.winner;
+				requestID = window.requestAnimationFrame(winningDraw);
+				winningPlayersList = [];
+				if (playerRole == winningTeam) {
+					winningPlayersList.push({'name' : user_name, 'color' : playerColor});
+					otherPlayers.forEach((other) => {
+						if (other.role == winningTeam) {
+							winningPlayersList.push(other);
+						}
+					});
+				}
+				websocket.close();
+				break;
             default:
                 console.log('Websocket ??????');
                 console.log(e.data);
@@ -308,6 +325,28 @@ var nxg_j, nxg_i;
 var oldPlayerX = -1;
 var oldPlayerY = -1;
 var oldInVent = false;
+
+function winningDraw() {
+	ctx.fillStyle = '#000000';
+	ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
+	ctx.fillStyle = winningTeam == 'impostor' ? 'red' : 'cyan';
+	ctx.fillRect(0, c.clientHeight / 3, c.clientWidth, c.clientHeight / 3);
+	
+	const teamLength = winningPlayersList.length;
+	for (let i = 0; i < teamLength; i++) {
+		drawPlayerScale((c.clientHeight / tileSize - 1) - teamLength * tileSize + i * tileSize * 2, (c.clientHeight / tileSize - 1) / 2, 0, 0, winningPlayersList[i].color, winningPlayersList[i].name, 1.5);
+	}
+	
+	ctx.fillStyle = 'white';
+	ctx.font = "36px Arial";
+	ctx.fillText("Press enter to play again", c.clientWidth / 2 - 200, c.clientHeight * 6 / 8);
+	
+	if (keyCode != 0x0d) {
+		window.requestAnimationFrame(winningDraw);
+	} else {
+		startGame();
+	}
+}
 
 
 function nextGameFrame() {
@@ -432,17 +471,19 @@ function doFrameWork() {
         }
     }
     // Black out area's beyond character vision
-    for (nxg_j = 0; nxg_j < c.clientHeight / tileSize; nxg_j++) {
-        for (nxg_i = 0; nxg_i < c.clientWidth / tileSize; nxg_i++) {
-            if (Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) {
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
-            } else if (!inPlayerView(playerX, playerY, nxg_i + currentScrollX, nxg_j + currentScrollY, true)) {
-                ctx.fillStyle = '#101010';
-                ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
-            }
-        }   
-    }
+	if (playerIsAlive) {
+		for (nxg_j = 0; nxg_j < c.clientHeight / tileSize; nxg_j++) {
+			for (nxg_i = 0; nxg_i < c.clientWidth / tileSize; nxg_i++) {
+				if (Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) {
+					ctx.fillStyle = '#000000';
+					ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
+				} else if (!inPlayerView(playerX, playerY, nxg_i + currentScrollX, nxg_j + currentScrollY, true)) {
+					ctx.fillStyle = '#101010';
+					ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
+				}
+			}   
+		}
+	}
 	
 	// Draw any dead bodies 
 	for (nxg_i = 0; nxg_i < deadBodies.length; nxg_i++) {
@@ -585,14 +626,18 @@ function drawBody(x, y, scrollx, scrolly, color) {
     ctx.fill();
 }
 
-function drawPlayer(x, y, scrollx, scrolly, color, name) {
-    ctx.fillStyle = color;
+function drawPlayerScale(x, y, scrollx, scrolly, color, name, scale) {
+	ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc((x - scrollx) * tileSize + halfTileSize, (y - scrolly) * tileSize + halfTileSize, halfTileSize, 0, 2 * Math.PI);
+    ctx.arc((x - scrollx) * tileSize + halfTileSize, (y - scrolly) * tileSize + halfTileSize, halfTileSize * scale, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.font = '12px Courier New';
+    ctx.font = `${ Math.trunc(Math.round(12 * scale)) }px Courier New`;
     ctx.fillStyle = '#000000';
     ctx.fillText(name, (x - scrollx) * tileSize + halfTileSize - 4 * user_name.length, (y - scrolly) * tileSize - 5);   
+}
+
+function drawPlayer(x, y, scrollx, scrolly, color, name) {
+    drawPlayerScale(x, y, scrollx, scrolly, color, name, 1);
 }
 
 function inRange(x, a, b) {
