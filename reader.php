@@ -22,7 +22,7 @@ file_put_contents("map.json", $output);
 
 $array = json_decode($output, true);
 
-$checks = [3,4,5,6,7,8,9,10,11,12,13,14,15, -10,-11,-12,-13,-14,-15,-16,-17,18,-19];
+$checks = ['tasks', -10,-11,-12,-13,-14,-15,-16,-17,18,-19];
 
 $put2 = "{";
 foreach ($checks as $vent) {
@@ -30,7 +30,7 @@ foreach ($checks as $vent) {
 	$alr = false;
 	for ($j = 0; $j < count($array); $j++) {
 		for ($i = 0; $i < count($array[0]); $i++) {
-			if ($array[$j][$i] == $vent) {
+			if ($vent <= -10 ? ($array[$j][$i] == $vent) : ($array[$j][$i] >= 3 && $array[$j][$i] <= 15)) {
 				if ($alr) { $put2 .= ",";}
 				$put2 .= "[" . $i . ',' . $j . "]";
 				$alr = true;
