@@ -12,6 +12,3 @@ $ node init
 ```
 
 macOS 12+ specific: open `app/__init__.js` in your text editor of choice and change `const port = 5000;` to `const port = 8000;`
-
-
-NOTE: starting game with 1 player bugs cooldown timer - makes it count double
