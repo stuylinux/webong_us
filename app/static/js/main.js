@@ -566,11 +566,6 @@ function distanceFromPlayer(player) {
 }
 
 function taskIntervalFunction() {
-	if (playerIsAlive == false) {
-		clearInterval(taskInterval);
-		taskInterval = -1;
-		return;
-	}
 	if (--taskTimer <= 0) {
 		taskList[currentTaskIndex][1] = true;
 		console.log('task done!');
