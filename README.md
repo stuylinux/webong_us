@@ -1,5 +1,9 @@
 # NastyFightingTurtles
 
+## Prerequisites
+
+- [Node](https://nodejs.dev/download)
+
 ## Run Code
 ```sh
 $ cd dir/to/this/repo/.../app
