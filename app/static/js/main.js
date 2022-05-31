@@ -194,6 +194,14 @@ function startGame() {
 			case 'newbody':
 				deadBodies.push(msg.body);
 				break;
+            case 'voteover':
+                window.cancelAnimationFrame(requestID);
+                deadBodies = [];
+                setTimeout(() => {
+                    window.cancelAnimationFrame(requestID);
+                    requestID = window.requestAnimationFrame(nextGameFrame);
+                }, 5000);
+                break;
             case 'deleteplayer':
                 for (let i = 0; i < otherPlayers.length; i++) {
                     //console.log(otherPlayers[i].name, msg.player_data.name);
@@ -265,6 +273,21 @@ function startGame() {
 					
                 }
                 break;
+            case 'report':
+                window.cancelAnimationFrame(requestID);
+                requestID = window.requestAnimationFrame(votingScreen);
+                hasVoted = false;
+                voteableArray = [{'name' : '__NONE__', color : '#ffffff'}];
+                votingReporter = msg.reporter;
+                if (playerIsAlive) {
+                    voteableArray.push({'name' : user_name, 'color' : playerColor});
+                }
+                otherPlayers.forEach((other) => {
+                    if (other.alive == true) {
+                        voteableArray.push(other);
+                    }
+                });
+                break;
 			case 'gameover':
 				window.cancelAnimationFrame(requestID);
 				winningTeam = msg.winner;
@@ -318,6 +341,9 @@ function requestStartGame() {
     }
 }
 
+var hasVoted = false;
+var votingReporter;
+var voteableArray;
 
 var currentScrollX = Math.max(0, playerX - centerTileOffsetX);
 var currentScrollY = Math.max(0, playerX - centerTileOffsetX);
@@ -353,7 +379,7 @@ function winningDraw() {
 	ctx.fillText("Press enter to play again", c.clientWidth / 2 - 200, c.clientHeight * 6 / 8);
 	
 	if (keyCode != 0x0d) {
-		window.requestAnimationFrame(winningDraw);
+		requestID = window.requestAnimationFrame(winningDraw);
 	} else {
 		startGame();
 	}
@@ -364,7 +390,7 @@ function nextGameFrame() {
 	doFrameWork();
 
 	globalTimer++;
-    window.requestAnimationFrame(nextGameFrame);
+    requestID = window.requestAnimationFrame(nextGameFrame);
 }
 
 function doFrameWork() {
@@ -384,29 +410,31 @@ function doFrameWork() {
 				playerX++;
 				keyCode = -1;
 			} 
-		} else if (keyCode == 79 /* O */ && playerRole == 'impostor' && playerCooldowns[1] == 0) {
-			for (let i = 0; i < otherPlayers.length; i++) {
-				if (distanceFromPlayer(otherPlayers[i]) <= 1 && otherPlayers[i].role == 'crewmate') {
-					websocket.send(JSON.stringify({
-						'type' : 'gameaction',
-						'actiontype' : 'kill',
-						'player_data' : otherPlayers[i],
-					}));
-					[playerX, playerY] = otherPlayers[i].pos;
-					otherPlayers[i].alive = false;
-					playerCooldowns[1] = 35;
-					break;
-				}
-			}
+		} else if (keyCode == 79 /* O */ && playerRole == 'impostor') {
+            if (playerCooldowns[1] == 0) {
+                for (let i = 0; i < otherPlayers.length; i++) {
+                    if (distanceFromPlayer(otherPlayers[i]) <= 1 && otherPlayers[i].role == 'crewmate' && otherPlayers[i].alive) {
+                        websocket.send(JSON.stringify({
+                            'type' : 'gameaction',
+                            'actiontype' : 'kill',
+                            'player_data' : otherPlayers[i],
+                        }));
+                        [playerX, playerY] = otherPlayers[i].pos;
+                        otherPlayers[i].alive = false;
+                        playerCooldowns[1] = 35;
+                        break;
+                    }
+                }
+            }
 			keyCode = -1;
 		} else if (keyCode == 73 /* I */ && playerRole == 'impostor' && inRange(map[playerY][playerX], -10, -19)) {
             //console.log('I pressed');
             playerInVent = true;
             keyCode = -1;
-        } else if (checkForBody(playerX, playerY) !== false && keyCode == 85 /* U */) {
+        } else if (keyCode == 85 /* U */ && playerIsAlive && checkForBody(playerX, playerY) !== false) {
             console.log(checkForBody(playerX, playerY));
             websocket.send(JSON.stringify({
-                'type' : 'action',
+                'type' : 'gameaction',
                 'actiontype' : 'report',
                 'bodydata' : checkForBody(playerX, playerY),
             }));
@@ -502,7 +530,7 @@ function doFrameWork() {
 	
 	// Draw any dead bodies 
 	for (nxg_i = 0; nxg_i < deadBodies.length; nxg_i++) {
-		if ((Math.abs(playerX - deadBodies[nxg_i].pos[0]) + Math.abs(playerY - deadBodies[nxg_i].pos[1]) < (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) &&
+		if (playerIsAlive == false || (Math.abs(playerX - deadBodies[nxg_i].pos[0]) + Math.abs(playerY - deadBodies[nxg_i].pos[1]) < (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) &&
             inPlayerView(playerX, playerY, deadBodies[nxg_i].pos[0], deadBodies[nxg_i].pos[1], false)
             ) {
             drawBody(
@@ -513,7 +541,7 @@ function doFrameWork() {
     }
     // Draw other visible players
     for (nxg_i = 0; nxg_i < otherPlayers.length; nxg_i++) {
-        if ((Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) < (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) && 
+        if (playerIsAlive == false || (Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) < (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) && 
             otherPlayers[nxg_i].alive && !otherPlayers[nxg_i].in_vent &&
             inPlayerView(playerX, playerY, otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], false)
             ) {
@@ -648,6 +676,65 @@ function inPlayerView(px, py, ox, oy, alr) {
     }
     
     return true;
+}
+
+function votingScreen() {
+    if (keyCode >= 0x30 && keyCode <= 0x39) {
+        if (hasVoted == false && playerIsAlive) {
+            hasVoted = true;
+            websocket.send(JSON.stringify({
+                'type' : 'gameaction',
+                'actiontype' : 'vote',
+                'voted_player_name' : voteableArray[keyCode == 0x30 ? 9 : keyCode - 0x31].name,
+            }));
+        }
+    }
+
+    clearInterval(taskInterval);
+
+    ctx.fillStyle = 'gray';
+    ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
+    ctx.fillStyle = "#404040";
+	ctx.fillRect(c.clientWidth / 8, c.clientHeight / 8, c.clientWidth * 6 / 8, c.clientHeight * 6 / 8);
+
+    ctx.font = "36px Arial";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("Voting:", c.clientWidth / 2 - 50, c.clientHeight / 8 + 40);
+    ctx.font = "16px Arial";
+    ctx.fillText("Reported by: " + votingReporter.name, c.clientWidth / 2 - 100, c.clientHeight / 8 + 75);
+
+    if (hasVoted == true || playerIsAlive == false) {
+        ctx.fillStyle = 'red';
+        ctx.font = '20px Arial';
+        ctx.fillText(playerIsAlive == true ? "Voted!" : "Can't vote!", c.clientWidth / 2 - 40, c.clientHeight * 6.5 / 8);
+    }
+
+    for (let j = 0; j < 3; j++) {
+        for (let i = 0; i < 4; i++) {
+            let index = i + j * 4;
+            if (index >= voteableArray.length) { break; }
+
+            let basex = Math.trunc(c.clientWidth / tileSize / 3);
+            let offsetx = Math.trunc(c.clientWidth / tileSize / 6);
+            let basey = Math.trunc(c.clientWidth / tileSize / 4);
+            drawPlayer(basex + j * offsetx, 
+                basey + i * 3, 0, 0, 
+                voteableArray[i].color, 
+                voteableArray[i].name != '__NONE__' ? voteableArray[i].name : 'Nobody!');
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.fillText(((index + 1) % 10) + '', (basex + j * offsetx) * tileSize - 20, (basey + i * 3) * tileSize + halfTileSize);
+        }
+    }
+
+    requestID = window.requestAnimationFrame(votingScreen);
+}
+
+function ejectScreen() {
+    ctx.fillStyle = 'black';
+    ctx.filRect(0, 0, c.clientWidth, c.clientHeight);
+
+    requestID = window.requestAnimationFrame(ejectScreen);
 }
 
 function drawBody(x, y, scrollx, scrolly, color) {
