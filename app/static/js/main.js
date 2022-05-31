@@ -272,12 +272,13 @@ function startGame() {
 				winningPlayersList = [];
 				if (playerRole == winningTeam) {
 					winningPlayersList.push({'name' : user_name, 'color' : playerColor});
-					otherPlayers.forEach((other) => {
-						if (other.role == winningTeam) {
-							winningPlayersList.push(other);
-						}
-					});
-				}
+                }
+				otherPlayers.forEach((other) => {
+					if (other.role == winningTeam) {
+						winningPlayersList.push(other);
+					}
+				});
+                document.getElementById("startGameHolder").innerHTML = "";
 				websocket.close();
 				break;
             default:
@@ -332,9 +333,19 @@ function winningDraw() {
 	ctx.fillStyle = winningTeam == 'impostor' ? 'red' : 'cyan';
 	ctx.fillRect(0, c.clientHeight / 3, c.clientWidth, c.clientHeight / 3);
 	
+    ctx.fillStyle = '#0000ff';
+    ctx.font = "40px Arial";
+    if (winningPlayersList.length != 0 && playerRole == winningTeam) {
+        ctx.fillText('Victory', c.clientWidth / 2 - 50, c.clientHeight / 8);
+    } else {
+        ctx.fillText('Defeat', c.clientWidth / 2 - 50, c.clientHeight / 8);
+    }
+
 	const teamLength = winningPlayersList.length;
+    const centerTileX = Math.trunc(c.clientWidth / tileSize / 2);
+    const centerTileY = Math.trunc(c.clientHeight / tileSize / 2);
 	for (let i = 0; i < teamLength; i++) {
-		drawPlayerScale((c.clientHeight / tileSize - 1) - teamLength * tileSize + i * tileSize * 2, (c.clientHeight / tileSize - 1) / 2, 0, 0, winningPlayersList[i].color, winningPlayersList[i].name, 1.5);
+    	drawPlayerScale(centerTileX - (teamLength - 1) + i * 2, centerTileY, 0, 0, winningPlayersList[i].color, winningPlayersList[i].name, 1.5);
 	}
 	
 	ctx.fillStyle = 'white';
@@ -373,11 +384,7 @@ function doFrameWork() {
 				playerX++;
 				keyCode = -1;
 			} 
-		} else if (keyCode == 73 /* I */ && playerRole == 'impostor' && inRange(map[playerY][playerX], -10, -19)) {
-            //console.log('I pressed');
-            playerInVent = true;
-            keyCode = -1;
-        } else if (keyCode == 79 /* O */ && playerRole == 'impostor' && playerCooldowns[1] == 0) {
+		} else if (keyCode == 79 /* O */ && playerRole == 'impostor' && playerCooldowns[1] == 0) {
 			for (let i = 0; i < otherPlayers.length; i++) {
 				if (distanceFromPlayer(otherPlayers[i]) <= 1 && otherPlayers[i].role == 'crewmate') {
 					websocket.send(JSON.stringify({
@@ -392,14 +399,24 @@ function doFrameWork() {
 				}
 			}
 			keyCode = -1;
-		} else if (keyCode == 73 /* I */ && playerRole == 'crewmate' && inRange(map[playerY][playerX], 3, 16)) {
-			if (checkInTaskList(playerX, playerY) !== false) {
+		} else if (keyCode == 73 /* I */ && playerRole == 'impostor' && inRange(map[playerY][playerX], -10, -19)) {
+            //console.log('I pressed');
+            playerInVent = true;
+            keyCode = -1;
+        } else if (checkForBody(playerX, playerY) !== false && keyCode == 85 /* U */) {
+            console.log(checkForBody(playerX, playerY));
+            websocket.send(JSON.stringify({
+                'type' : 'action',
+                'actiontype' : 'report',
+                'bodydata' : checkForBody(playerX, playerY),
+            }));
+            keyCode = -1;
+        } else if (keyCode == 73 /* I */ && playerRole == 'crewmate' && inRange(map[playerY][playerX], 3, 16) && checkInTaskList(playerX, playerY) !== false) {
 				console.log("task");
 				taskTimer = 5;
 				currentTaskIndex = checkInTaskList(playerX, playerY);
 				taskInterval = setInterval(taskIntervalFunction, 1000);
 				keyCode = -1;
-			}
 		}
     } else {
         if (keyCode == 73 /* I */) {
@@ -471,18 +488,16 @@ function doFrameWork() {
         }
     }
     // Black out area's beyond character vision
-	if (playerIsAlive) {
-		for (nxg_j = 0; nxg_j < c.clientHeight / tileSize; nxg_j++) {
-			for (nxg_i = 0; nxg_i < c.clientWidth / tileSize; nxg_i++) {
-				if (Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) {
-					ctx.fillStyle = '#000000';
-					ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
-				} else if (!inPlayerView(playerX, playerY, nxg_i + currentScrollX, nxg_j + currentScrollY, true)) {
-					ctx.fillStyle = '#101010';
-					ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
-				}
-			}   
-		}
+	for (nxg_j = 0; nxg_j < c.clientHeight / tileSize; nxg_j++) {
+		for (nxg_i = 0; nxg_i < c.clientWidth / tileSize; nxg_i++) {
+			if (playerIsAlive && Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) {
+				ctx.fillStyle = '#000000';
+				ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
+			} else if (!inPlayerView(playerX, playerY, nxg_i + currentScrollX, nxg_j + currentScrollY, true)) {
+				ctx.fillStyle = '#101010';
+				ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
+			}
+		}   
 	}
 	
 	// Draw any dead bodies 
@@ -536,6 +551,12 @@ function doFrameWork() {
 			}
 		}
 	}
+
+    if (gameIsStarted == false) {
+        ctx.fillStyle = 'green';
+        ctx.font = '36px Arial';
+        ctx.fillText(`Lobby (${ otherPlayers.length + 1 }/10)`, c.clientWidth / 2 - 100, c.clientHeight / 8);
+    }
 }
 
 function distanceFromPlayer(player) {
@@ -576,6 +597,16 @@ function checkInTaskList(x, y) {
 	return false;
 }
 
+function checkForBody(x, y) {
+    if (typeof(deadBodies) == 'undefined') { return false; }
+    for (let i = 0; i < deadBodies.length; i++) {
+        if (inRange(distanceFromPlayer(deadBodies[i]), 0, 1)) {
+            return deadBodies[i];
+        }
+    }
+    return false;
+}
+
 function inPlayerView(px, py, ox, oy, alr) {
     if (ox < 0 || ox >= map[0].length || oy < 0 || oy >= map.length) {
         return false;
@@ -583,12 +614,12 @@ function inPlayerView(px, py, ox, oy, alr) {
     } else if (ox == px) {
         while (oy != py) {
             oy += (oy < py) ? 1 : -1;
-            if (inRange(map[oy][px], 1, 2)) { return false; }
+            if (inRange(map[oy][px], 1, 1)) { return false; }
         }
     } else if (oy == py) {
         while (ox != px) {
             ox += (ox < px) ? 1 : -1;
-            if (inRange(map[py][ox], 1, 2)) { return false; }
+            if (inRange(map[py][ox], 1, 1)) { return false; }
         }
     }
 
@@ -604,7 +635,7 @@ function inPlayerView(px, py, ox, oy, alr) {
     while (Math.round(temp_y) != py || Math.round(temp_x) != px) {
         temp_x += dx;
         temp_y += dy;
-        if (inRange(map[Math.trunc(Math.round(temp_y))][Math.trunc(Math.round(temp_x))], 1, 2)) {
+        if (inRange(map[Math.trunc(Math.round(temp_y))][Math.trunc(Math.round(temp_x))], 1, 1) /* if tile equals 1 (wall) */) {
             if (alr) {
                 let xdir = dx > 0 ? 1 : -1;
                 let ydir = dy > 0 ? 1 : -1;
@@ -633,7 +664,7 @@ function drawPlayerScale(x, y, scrollx, scrolly, color, name, scale) {
     ctx.fill();
     ctx.font = `${ Math.trunc(Math.round(12 * scale)) }px Courier New`;
     ctx.fillStyle = '#000000';
-    ctx.fillText(name, (x - scrollx) * tileSize + halfTileSize - 4 * user_name.length, (y - scrolly) * tileSize - 5);   
+    ctx.fillText(name, (x - scrollx) * tileSize + halfTileSize - scale * 4 * name.length, (y - scrolly) * tileSize - 5);   
 }
 
 function drawPlayer(x, y, scrollx, scrolly, color, name) {

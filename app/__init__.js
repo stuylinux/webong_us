@@ -2,6 +2,7 @@ const http = require('http');
 const express = require('express');
 const nunjucks = require('nunjucks');
 const websockets = require('ws');
+const { table } = require('console');
 
 nunjucks.configure('templates', { autoescape : true });
 
@@ -16,6 +17,8 @@ var gameIsStarted = false;
 
 var gameInterval;
 var gameTimer;
+
+var votes;
 
 ws_s.on('connection' , (ws) => {
 	const id = genRandomID();
@@ -40,6 +43,7 @@ ws_s.on('connection' , (ws) => {
 		'cooldowns' : [-1, -1],
 		'in_vent' : false,
 		'alive' : true,
+		'has_voted' : false,
 		'tasksdone' : false,
 	}
 	clients.set(ws, playerData);
@@ -124,7 +128,50 @@ ws_s.on('connection' , (ws) => {
 				case 'tasksdone':
 					let clientData = clients.get(ws);
 					clientData.tasksdone = true;
-					clients.set(ws,data);
+					clients.set(ws, clientData);
+					let everyCrewmateTasksDone = true;
+					clients.forEach((cData, client, clients) => {
+						if (everyCrewmateTasksDone && cData.role == 'crewmate' && cData.tasksdone == false) {
+							everyCrewmateTasksDone = false;
+						}
+					});
+					if (everyCrewmateTasksDone) {
+						const gameOverMessage = JSON.stringify({
+							'type' : 'gameover',
+							'winner' : 'crewmate',
+						});
+						clients.forEach((cData, client, clients) => {
+							client.send(gameOverMessage);
+							gameIsStarted = false;
+							clearInterval(gameInterval);
+							gameTimer = -1;
+						});	
+					}
+					break;
+				case 'report':
+					{
+						votes = new Map();
+						clients.forEach((clientData, client, clients) => {
+							votes.set(clientData.name, 0);
+							clientData.has_voted = false;
+							clients.set(client, clientData);
+						});
+						let bodydata = message.body_data;
+						const messageToSend = JSON.stringify({
+							'type' : 'report',
+							'body_data' : bodydata,
+							'reporter' : clients.get(ws),
+						});
+					}
+					break;
+				case 'vote':
+					{
+						let clientData = clients.get(ws);
+						if (clientData.has_voted == false) {
+							clientData.has_voted = true;
+							clients.set(ws, clientData);
+						}
+					}
 					break;
 				case 'kill':
 					let deadplayername = message.player_data.name;
@@ -177,6 +224,11 @@ ws_s.on('connection' , (ws) => {
 								client.send(bodyMessage);
 							}
 						});
+						if (numImpostors >= crewmatesAlive) {
+							gameIsStarted = false;
+							clearInterval(gameInterval);
+							gameTimer = -1;
+						}
 					}
 			}
 		} else if (message.type == 'startgame') {
@@ -202,6 +254,12 @@ ws_s.on('connection' , (ws) => {
 					//console.log(clientData);
 					//console.log(client);
 					clients.set(client, clientData);
+					clients.forEach((cData, client, clients) => {
+						client.send(JSON.stringify({
+							'type' : 'updateplayer',
+							'player_data' : clientData,
+						}));
+					});
 				}
 				
 				/*const everyMessage = JSON.stringify({
@@ -215,6 +273,7 @@ ws_s.on('connection' , (ws) => {
 						'new_player_data' : clientData,
 					}));
 				});
+				assignPositionsAroundTable();
 
 				gameTimer = 0;
 				gameIsStarted = true;
@@ -261,6 +320,29 @@ ws_s.on('connection' , (ws) => {
 			clearInterval(gameInterval);
 			//clients = new Map();
 			gameTimer = -1;
+		} else {
+			let crewmatesAlive = 0;
+			let numImpostors = 0;
+			clients.forEach((cData, client, clients) => {
+				if (cData.alive == true && cData.role == 'crewmate') {
+					crewmatesAlive++;
+				} else if (cData.alive == true && cData.role == 'impostor') {
+					numImpostors++;
+				}
+			});
+			if (numImpostors == 0 || numImpostors >= crewmatesAlive) {
+				const gameOverMessage = JSON.stringify({
+					'type' : 'gameover',
+					'winner' : (numImpostors == 0 ? 'crewmate' : 'impostor'),
+				});
+				clients.forEach((cData, client, clients) => {
+					client.send(gameOverMessage);
+				});
+				gameIsStarted = false;
+				clearInterval(gameInterval);
+				gameTimer = -1;
+			}
+			
 		}
 	});
 });
@@ -282,6 +364,47 @@ function gameNextSecond() {
 
 	gameTimer++;
 }
+
+const tableSpots = [
+	[70, 13],
+	[72, 13],
+	[74, 13],
+	[75, 16],
+	[75, 18],
+	[75, 20],
+	[73, 21],
+	[71, 21],
+	[69, 21],
+	[68, 19],
+	[68, 17],
+	[68, 15],
+];
+
+function assignPositionsAroundTable() {
+	let tempSpots = [];
+	for (let i = 0; i < tableSpots.length; i++) {
+		tempSpots.push(tableSpots[i]);
+	}
+	clients.forEach((clientData, client, clients) => {
+		let spot;
+		if (tempSpots.length != 0) {
+			spot = randInt(tempSpots.length);
+			spot = tempSpots.splice(spot, 1)[0];
+		} else {
+			spot = tableSpots[randInt(tableSpots.length)];
+		}
+		clientData.pos = spot;
+		clients.set(client, clientData);
+		const messageToSend = JSON.stringify({
+			'type' : 'moveplayer',
+			'player_data' : clientData
+		});
+		clients.forEach((cData, client, clients) => {
+			client.send(messageToSend);
+		});
+	});
+}
+
 
 function genRandomID() {
 	return Math.trunc(Math.random() * 4294967296 /* 2^32 */);
