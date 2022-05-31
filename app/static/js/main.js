@@ -120,7 +120,9 @@ function startGame() {
     playerInVent = false;
     playerIsAlive = true;
     gameIsStarted = false;
+    deadBodies = [];
 
+    document.getElementById('uiHolder').innerHTML = '';
     websocket = new WebSocket('ws://localhost:47777/');
 	websocket.onopen = (e) => {
         websocket.send(JSON.stringify({
