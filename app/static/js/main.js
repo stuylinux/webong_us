@@ -683,7 +683,6 @@ function inPlayerView(px, py, ox, oy, alr) {
 
 function votingScreen() {
     if (keyCode >= 0x30 && keyCode <= 0x39) {
-        keyCode = -1;
         if (hasVoted == false && playerIsAlive) {
             hasVoted = true;
             websocket.send(JSON.stringify({
@@ -692,6 +691,7 @@ function votingScreen() {
                 'voted_player_name' : voteableArray[keyCode == 0x30 ? 9 : keyCode - 0x31].name,
             }));
         }
+        keyCode = -1;
     }
 
     clearInterval(taskInterval);
