@@ -123,7 +123,7 @@ function startGame() {
     deadBodies = [];
 
     document.getElementById('uiHolder').innerHTML = '';
-    websocket = new WebSocket('ws://localhost:80/ws');
+    websocket = new WebSocket('ws://localhost:47777/ws');
 	websocket.onopen = (e) => {
         websocket.send(JSON.stringify({
             'type' : 'init',
