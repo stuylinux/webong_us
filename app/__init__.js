@@ -259,7 +259,7 @@ ws_s.on('connection' , (ws) => {
 			let clientData = clients.get(ws);
 			if (clientData.host && !gameIsStarted /*&& clients.size >= 4*/) {
 				gameIsStarted = true;
-				let impostorIndexes = (clients.size < 6) ? [randInt(clients.size)] : getDistinctRandomInts(0, clients.size);
+				let impostorIndexes = (clients.size < 6) ? [randInt(clients.size)] : getDistinctRandomInts(clients.size);
 				let clientsArray = [];
 				clients.forEach((clientData, client, clients) => {
 					clientData.role = 'crewmate';
@@ -505,7 +505,8 @@ function getDistinctRandomInts(maxexcl) {
 	let r = randInt(maxexcl);
 	let r2 = randInt(maxexcl - 1);
 	if (r2 >= r) { r2++; }
-
+	console.log([r,r2]);
+	console.log(maxexcl)
 	return [r, r2];
 }
 

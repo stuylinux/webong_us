@@ -136,7 +136,7 @@ function startGame() {
     oldInVent = false;
 
     document.getElementById('uiHolder').innerHTML = '';
-    websocket = new WebSocket('ws://localhost:47777/');
+    websocket = new WebSocket('ws://localhost:47777/ws');
 	websocket.onopen = (e) => {
         websocket.send(JSON.stringify({
             'type' : 'init',
