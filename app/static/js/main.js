@@ -121,6 +121,19 @@ function startGame() {
     playerIsAlive = true;
     gameIsStarted = false;
     deadBodies = [];
+    otherPlayers = [];
+
+    winningTeam = false;
+    winningPlayersList = [];
+
+    clearInterval(taskInterval);
+    taskTimer = -1;
+    taskList = [];
+    currentTaskIndex = -1;
+
+    oldPlayerX = -1;
+    oldPlayerY = -1;
+    oldInVent = false;
 
     document.getElementById('uiHolder').innerHTML = '';
     websocket = new WebSocket('ws://localhost:47777/');
@@ -393,7 +406,11 @@ function winningDraw() {
 	if (keyCode != 0x0d) {
 		requestID = window.requestAnimationFrame(winningDraw);
 	} else {
-		startGame();
+        setTimeout(() => {
+            window.cancelAnimationFrame(requestID);
+		    startGame();
+        }, 0);
+        keyCode = -1;
 	}
 }
 
@@ -425,7 +442,7 @@ function doFrameWork() {
 		} else if (keyCode == 79 /* O */ && playerRole == 'impostor') {
             if (playerCooldowns[1] == 0) {
                 for (let i = 0; i < otherPlayers.length; i++) {
-                    if (distanceFromPlayer(otherPlayers[i]) <= 1 && otherPlayers[i].role == 'crewmate' && otherPlayers[i].alive) {
+                    if (distanceFromPlayer(otherPlayers[i]) <= 2 && otherPlayers[i].role == 'crewmate' && otherPlayers[i].alive) {
                         websocket.send(JSON.stringify({
                             'type' : 'gameaction',
                             'actiontype' : 'kill',
@@ -641,7 +658,7 @@ function checkInTaskList(x, y) {
 function checkForBody(x, y) {
     if (typeof(deadBodies) == 'undefined') { return false; }
     for (let i = 0; i < deadBodies.length; i++) {
-        if (inRange(distanceFromPlayer(deadBodies[i]), 0, 1)) {
+        if (inRange(distanceFromPlayer(deadBodies[i]), 0, 2)) {
             return deadBodies[i];
         }
     }
@@ -762,7 +779,7 @@ function ejectScreen() {
     ctx.fillStyle = 'white';
     ctx.fillText(
         ejectedPlayer.name != '__NONE__' ? 
-            `${ ejectedPlayer.name } was ${ ejectedPlayer.role == 'impostor' ? '' : 'not '}an Impostor.` : "No one was ejected", 
+            `${ ejectedPlayer.name } was ${ ejectedPlayer.role == 'impostor' ? '' : 'not '}an Impostor.` : "No one was ejected.", 
         c.clientWidth / 2 - 200, 
         c.clientHeight / 3 - 25);
 

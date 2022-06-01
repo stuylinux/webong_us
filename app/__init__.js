@@ -8,6 +8,7 @@ const { clearInterval } = require('timers');
 nunjucks.configure('templates', { autoescape : true });
 
 const port = 5000;
+const host = 'localhost';
 const app = express();
 
 const ws_s = new websockets.Server({ port : 47777 });
@@ -520,6 +521,6 @@ app.get('/', (req, res) => {
 app.use('/static', express.static('static'));
 app.use(express.static('favicon'));
 
-app.listen(port, () => {
-	console.log(`Server running at http://localhost:${port}/`);
+app.listen(port, host, () => {
+	console.log(`Server running at http://${host}:${port}/`);
 });
