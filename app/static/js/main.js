@@ -4,7 +4,8 @@ const ctx = c.getContext('2d');
 var keyCode = -1;
 var requestID = -1;
 
-const websocketURL = 'ws://localhost:47777/ws';
+const serverIP = "localhost";
+const websocketURL = `ws://${serverIP}:47777/ws`;
 
 window.addEventListener('load', () => {
     requestID = window.requestAnimationFrame(promptName);
