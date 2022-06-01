@@ -121,7 +121,7 @@ function startGame() {
     playerIsAlive = true;
     gameIsStarted = false;
 
-    websocket = new WebSocket('ws://localhost:47777/');
+    websocket = new WebSocket('ws://localhost:80/ws');
 	websocket.onopen = (e) => {
         websocket.send(JSON.stringify({
             'type' : 'init',
