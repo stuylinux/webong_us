@@ -4,6 +4,8 @@ const ctx = c.getContext('2d');
 var keyCode = -1;
 var requestID = -1;
 
+const websocketURL = 'ws://localhost:47777/ws';
+
 window.addEventListener('load', () => {
     requestID = window.requestAnimationFrame(promptName);
 });
@@ -136,7 +138,7 @@ function startGame() {
     oldInVent = false;
 
     document.getElementById('uiHolder').innerHTML = '';
-    websocket = new WebSocket('ws://localhost:47777/ws');
+    websocket = new WebSocket(websocketURL);
 	websocket.onopen = (e) => {
         websocket.send(JSON.stringify({
             'type' : 'init',
