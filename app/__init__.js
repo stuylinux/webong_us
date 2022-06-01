@@ -13,7 +13,7 @@ const app = express();
 const ws_s = new websockets.Server({ port : 47777 });
 const clients = new Map();
 
-const colorArray = ['#c51111', '#123ed1', '#117f2d', '#ed54ba', '#ef7d0d', '##F6F657', '#3f474e', '#6b2fbb', '#71491e', '#50ef39'];
+const colorArray = ['#c51111', '#123ed1', '#117f2d', '#ed54ba', '#ef7d0d', '#F6F657', '#3f474e', '#6b2fbb', '#71491e', '#50ef39'];
 var gameIsStarted = false;
 
 var gameInterval;
