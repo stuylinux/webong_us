@@ -562,6 +562,12 @@ function doFrameWork() {
                 currentScrollX, currentScrollY, otherPlayers[nxg_i].color, 
                 otherPlayers[nxg_i].name
             );
+            if (otherPlayers[nxg_i].alive == false) {
+                drawPlayer(
+                    otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], 
+                    currentScrollX, currentScrollY, 'rgba(255, 255, 255, 0.5)', ''
+                ); 
+            }
         }
     }
 	
