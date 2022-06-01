@@ -120,7 +120,9 @@ function startGame() {
     playerInVent = false;
     playerIsAlive = true;
     gameIsStarted = false;
+    deadBodies = [];
 
+    document.getElementById('uiHolder').innerHTML = '';
     websocket = new WebSocket('ws://localhost:47777/');
 	websocket.onopen = (e) => {
         websocket.send(JSON.stringify({
@@ -598,11 +600,6 @@ function distanceFromPlayer(player) {
 }
 
 function taskIntervalFunction() {
-	if (playerIsAlive == false) {
-		clearInterval(taskInterval);
-		taskInterval = -1;
-		return;
-	}
 	if (--taskTimer <= 0) {
 		taskList[currentTaskIndex][1] = true;
 		console.log('task done!');
