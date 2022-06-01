@@ -197,6 +197,10 @@ function startGame() {
             case 'voteover':
                 window.cancelAnimationFrame(requestID);
                 deadBodies = [];
+                ejectedPlayer = msg.ejected_player;
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
+                window.requestAnimationFrame(ejectScreen);
                 setTimeout(() => {
                     window.cancelAnimationFrame(requestID);
                     requestID = window.requestAnimationFrame(nextGameFrame);
@@ -344,6 +348,8 @@ function requestStartGame() {
 var hasVoted = false;
 var votingReporter;
 var voteableArray;
+
+var ejectedPlayer;
 
 var currentScrollX = Math.max(0, playerX - centerTileOffsetX);
 var currentScrollY = Math.max(0, playerX - centerTileOffsetX);
@@ -680,6 +686,7 @@ function inPlayerView(px, py, ox, oy, alr) {
 
 function votingScreen() {
     if (keyCode >= 0x30 && keyCode <= 0x39) {
+        keyCode = -1;
         if (hasVoted == false && playerIsAlive) {
             hasVoted = true;
             websocket.send(JSON.stringify({
@@ -719,8 +726,8 @@ function votingScreen() {
             let basey = Math.trunc(c.clientWidth / tileSize / 4);
             drawPlayer(basex + j * offsetx, 
                 basey + i * 3, 0, 0, 
-                voteableArray[i].color, 
-                voteableArray[i].name != '__NONE__' ? voteableArray[i].name : 'Nobody!');
+                voteableArray[index].color, 
+                voteableArray[index].name != '__NONE__' ? voteableArray[index].name : 'Nobody!');
             ctx.fillStyle = 'white';
             ctx.font = '12px Arial';
             ctx.fillText(((index + 1) % 10) + '', (basex + j * offsetx) * tileSize - 20, (basey + i * 3) * tileSize + halfTileSize);
@@ -732,7 +739,25 @@ function votingScreen() {
 
 function ejectScreen() {
     ctx.fillStyle = 'black';
-    ctx.filRect(0, 0, c.clientWidth, c.clientHeight);
+    ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
+
+    ctx.fillStyle = '#505050';
+    ctx.beginPath();
+    ctx.arc(-0.5 * c.clientWidth, c.clientHeight / 2, c.clientWidth * 2 / 3, 0, 2 * Math.PI);
+    ctx.fill();
+
+    if (typeof(ejectedPlayer) != 'undefined' && ejectedPlayer.name != '__NONE__') {
+        drawPlayerScale(
+            Math.trunc(c.clientWidth / tileSize / 2), Math.trunc(c.clientHeight / tileSize / 2), 
+           0, 0, ejectedPlayer.color, ejectedPlayer.name, 1.5);
+    }
+    ctx.font = "36px Arial";
+    ctx.fillStyle = 'white';
+    ctx.fillText(
+        ejectedPlayer.name != '__NONE__' ? 
+            `${ ejectedPlayer.name } was ${ ejectedPlayer.role == 'impostor' ? '' : 'not '}an Impostor.` : "No one was ejected", 
+        c.clientWidth / 2 - 200, 
+        c.clientHeight / 3 - 25);
 
     requestID = window.requestAnimationFrame(ejectScreen);
 }

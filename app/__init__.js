@@ -181,7 +181,7 @@ ws_s.on('connection' , (ws) => {
 							clients.set(ws, clientData);
 
 							votes.set(message.voted_player_name, 1 + votes.get(message.voted_player_name));
-							
+
 							let everyPlayerVoted = true;
 							clients.forEach((cData, client, clients) => {
 								if (cData.alive == true && cData.has_voted == false) {
@@ -433,19 +433,36 @@ function calculateVotes() {
 	votes.forEach((numvotes, name, votes) => {
 		votedPlayersArray.push([name, numvotes]);
 	});
-	votedPlayersArray.sort((a, b) => { return a - b; });
-	if (votedPlayersArray[0] != votedPlayersArray[1] && votedPlayersArray[0] != '__NONE__') {
-		let votedPlayer = [];
+	votedPlayersArray.sort((a, b) => { return -1 * (a[1] - b[1]); });
+	console.log(votedPlayersArray);
+	let votedPlayer = [{name : '__NONE__', color : 'white'}, null];
+	if (votedPlayersArray[0] != votedPlayersArray[1] && votedPlayersArray[0] != '__NONE__') {	
 		clients.forEach((cData, client, clients) => {
-			if (cData.name == votedPlayer) {
+			if (cData.name == votedPlayersArray[0][0]) {
 				votedPlayer = [cData, client];
 			}
 		});
 
 	}
+	console.log(votedPlayer);
+	if (votedPlayer[1] != null) {
+		votedPlayer[0].alive = false;
+		clients.set(votedPlayer[1], votedPlayer[0]);
+		const deadMessage = JSON.stringify({
+			'type' : 'updateplayer',
+			'player_data' : votedPlayer[0],
+		});
+		clients.forEach((cData, client, clients) => {
+			client.send(deadMessage);
+		});
+
+	}
 	const voteTallyMessage = JSON.stringify({
 		'type' : 'voteover',
-		'dead_player' : votedPlayer[0],
+		'ejected_player' : votedPlayer[0],
+	});
+	clients.forEach((cData, client, clients) => {
+		client.send(voteTallyMessage);
 	});
 
 	setTimeout(() => {
