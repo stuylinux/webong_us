@@ -204,8 +204,10 @@ function startGame() {
                 ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
                 window.requestAnimationFrame(ejectScreen);
                 setTimeout(() => {
-                    window.cancelAnimationFrame(requestID);
-                    requestID = window.requestAnimationFrame(nextGameFrame);
+                    if (gameIsStarted) {
+                        window.cancelAnimationFrame(requestID);
+                        requestID = window.requestAnimationFrame(nextGameFrame);
+                    }
                 }, 5000);
                 break;
             case 'deleteplayer':
@@ -297,7 +299,9 @@ function startGame() {
 			case 'gameover':
 				window.cancelAnimationFrame(requestID);
 				winningTeam = msg.winner;
+                gameIsStarted = false;
 				requestID = window.requestAnimationFrame(winningDraw);
+                clearInterval(taskInterval);
 				winningPlayersList = [];
 				if (playerRole == winningTeam) {
 					winningPlayersList.push({'name' : user_name, 'color' : playerColor});
