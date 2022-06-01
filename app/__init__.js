@@ -3,6 +3,7 @@ const express = require('express');
 const nunjucks = require('nunjucks');
 const websockets = require('ws');
 const { table } = require('console');
+const { clearInterval } = require('timers');
 
 nunjucks.configure('templates', { autoescape : true });
 
@@ -12,7 +13,7 @@ const app = express();
 const ws_s = new websockets.Server({ port : 47777 });
 const clients = new Map();
 
-const colorArray = ['#c51111', '#123ed1', '#117f2d', '#ed54ba', '#ef7d0d', '##F6F657', '#3f474e', '#6b2fbb', '#71491e', '#50ef39'];
+const colorArray = ['#c51111', '#123ed1', '#117f2d', '#ed54ba', '#ef7d0d', '#F6F657', '#3f474e', '#6b2fbb', '#71491e', '#50ef39'];
 var gameIsStarted = false;
 
 var gameInterval;
@@ -149,8 +150,10 @@ ws_s.on('connection' , (ws) => {
 					}
 					break;
 				case 'report':
+					// New scope so i can declare vars
 					{
 						votes = new Map();
+						votes.set('__NONE__', 0);
 						clients.forEach((clientData, client, clients) => {
 							votes.set(clientData.name, 0);
 							clientData.has_voted = false;
@@ -162,20 +165,40 @@ ws_s.on('connection' , (ws) => {
 							'body_data' : bodydata,
 							'reporter' : clients.get(ws),
 						});
+						console.log(messageToSend);
+						clients.forEach((cData, client, clients) => {
+							client.send(messageToSend);
+						})
+						clearInterval(gameInterval);
 					}
 					break;
 				case 'vote':
+					// New scope
 					{
 						let clientData = clients.get(ws);
-						if (clientData.has_voted == false) {
+						if (clientData.has_voted == false && clientData.alive) {
 							clientData.has_voted = true;
 							clients.set(ws, clientData);
+
+							votes.set(message.voted_player_name, 1 + votes.get(message.voted_player_name));
+
+							let everyPlayerVoted = true;
+							clients.forEach((cData, client, clients) => {
+								if (cData.alive == true && cData.has_voted == false) {
+									everyPlayerVoted = false;
+								}
+							});
+							//console.log(everyPlayerVoted);
+							if (everyPlayerVoted) {
+								calculateVotes();
+							}
 						}
 					}
 					break;
 				case 'kill':
 					let deadplayername = message.player_data.name;
 					let killerData = clients.get(ws);
+					if (killerData.cooldowns[1] != 0 || killerData.role != 'impostor') { break; } 
 					killerData.cooldowns[1] = 35;
 					/* 
 						Set dead player to dead, update each client with that fact, then create body
@@ -235,7 +258,7 @@ ws_s.on('connection' , (ws) => {
 			let clientData = clients.get(ws);
 			if (clientData.host && !gameIsStarted /*&& clients.size >= 4*/) {
 				gameIsStarted = true;
-				let impostorIndexes = (clients.size < 6) ? [randInt(clients.size)] : getDistinctRandomInts(0, clients.size);
+				let impostorIndexes = (clients.size < 6) ? [randInt(clients.size)] : getDistinctRandomInts(clients.size);
 				let clientsArray = [];
 				clients.forEach((clientData, client, clients) => {
 					clientData.role = 'crewmate';
@@ -277,8 +300,7 @@ ws_s.on('connection' , (ws) => {
 
 				gameTimer = 0;
 				gameIsStarted = true;
-				gameNextSecond();
-				setInterval(gameNextSecond, 1000);
+				gameInterval = setInterval(gameNextSecond, 1000);
 			} else {
 				ws.send(JSON.stringify({
 					'type' : 'startgame',
@@ -405,6 +427,74 @@ function assignPositionsAroundTable() {
 	});
 }
 
+function calculateVotes() {
+	console.log('calculateVotes() called');
+	votedPlayersArray = Array();
+	votes.forEach((numvotes, name, votes) => {
+		votedPlayersArray.push([name, numvotes]);
+	});
+	votedPlayersArray.sort((a, b) => { return -1 * (a[1] - b[1]); });
+	console.log(votedPlayersArray);
+	let votedPlayer = [{name : '__NONE__', color : 'white'}, null];
+	if (votedPlayersArray[0] != votedPlayersArray[1] && votedPlayersArray[0] != '__NONE__') {	
+		clients.forEach((cData, client, clients) => {
+			if (cData.name == votedPlayersArray[0][0]) {
+				votedPlayer = [cData, client];
+			}
+		});
+
+	}
+	console.log(votedPlayer);
+	if (votedPlayer[1] != null) {
+		votedPlayer[0].alive = false;
+		clients.set(votedPlayer[1], votedPlayer[0]);
+		const deadMessage = JSON.stringify({
+			'type' : 'updateplayer',
+			'player_data' : votedPlayer[0],
+		});
+		clients.forEach((cData, client, clients) => {
+			client.send(deadMessage);
+		});
+
+	}
+	const voteTallyMessage = JSON.stringify({
+		'type' : 'voteover',
+		'ejected_player' : votedPlayer[0],
+	});
+	clients.forEach((cData, client, clients) => {
+		client.send(voteTallyMessage);
+	});
+
+	setTimeout(() => {
+		let crewmatesAlive = 0;
+		let numImpostors = 0;
+		clients.forEach((cData, client, clients) => {
+			if (cData.alive == true && cData.role == 'crewmate') {
+				crewmatesAlive++;
+			} else if (cData.alive == true && cData.role == 'impostor') {
+				numImpostors++;
+			}
+		});
+		if (numImpostors == 0 || numImpostors >= crewmatesAlive) {
+			const gameOverMessage = JSON.stringify({
+				'type' : 'gameover',
+				'winner' : (numImpostors == 0 ? 'crewmate' : 'impostor'),
+			});
+			clients.forEach((cData, client, clients) => {
+				client.send(gameOverMessage);
+			});
+			gameIsStarted = false;
+			clearInterval(gameInterval);
+			gameTimer = -1;
+		}
+	}, 3500);
+	setTimeout(() => {
+		if (gameIsStarted == true) {
+			assignPositionsAroundTable();
+			gameInterval = setInterval(gameNextSecond, 1000);
+		} 
+	}, 4500);
+}
 
 function genRandomID() {
 	return Math.trunc(Math.random() * 4294967296 /* 2^32 */);
@@ -414,7 +504,8 @@ function getDistinctRandomInts(maxexcl) {
 	let r = randInt(maxexcl);
 	let r2 = randInt(maxexcl - 1);
 	if (r2 >= r) { r2++; }
-
+	console.log([r,r2]);
+	console.log(maxexcl)
 	return [r, r2];
 }
 
