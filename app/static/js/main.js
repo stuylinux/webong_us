@@ -309,6 +309,10 @@ function startGame() {
                     playerCooldowns = msg.new_player_data.cooldowns;
 					
 					if (playerRole == 'crewmate') {
+                        const meetingTimerDiv = document.createElement('div');
+                        meetingTimerDiv.innerHTML = "Meeting Cooldown: <span id='meetingCooldown'></span>";
+                        document.getElementById("uiHolder").appendChild(meetingTimerDiv);
+
 						const allTasks = mapdata['tasks'];
 						const taskHTMLList = document.createElement('ul');
 						taskHTMLList.id = "taskList";
@@ -329,8 +333,11 @@ function startGame() {
 						document.getElementById("uiHolder").appendChild(taskHTMLList);
 					} else {
 						const cooldownDiv = document.createElement('div');
-						cooldownDiv.innerHTML = `Kill Cooldown: <span id='killCooldown'></span><br>Sabotage Cooldown: <span id='sabotageCooldown'></span>
-                        <br><br>
+						cooldownDiv.innerHTML = `
+                        Kill Cooldown: <span id='killCooldown'></span><br>
+                        Sabotage Cooldown: <span id='sabotageCooldown'></span><br>
+                        Meeting Cooldown: <span id='meetingCooldown'></span><br>
+                        <br>
                         <div>1 - Reactor Sabotage</div>
                         <div>2 - O2 Sabotage</div>
                         <div>3 - Lights Sabotage</div>
@@ -357,6 +364,7 @@ function startGame() {
                 requestID = window.requestAnimationFrame(votingScreen);
                 hasVoted = false;
                 voteableArray = [{'name' : '__NONE__', color : '#ffffff'}];
+                votingDead = msg.body_data;
                 votingReporter = msg.reporter;
                 if (playerIsAlive) {
                     voteableArray.push({'name' : user_name, 'color' : playerColor});
@@ -426,6 +434,7 @@ function requestStartGame() {
 
 var hasVoted = false;
 var votingReporter;
+var votingDead;
 var voteableArray;
 
 var ejectedPlayer;
@@ -871,7 +880,7 @@ function votingScreen() {
     ctx.fillStyle = "#ffffff";
     ctx.fillText("Voting:", c.clientWidth / 2 - 50, c.clientHeight / 8 + 40);
     ctx.font = "16px Arial";
-    ctx.fillText("Reported by: " + votingReporter.name, c.clientWidth / 2 - 100, c.clientHeight / 8 + 75);
+    ctx.fillText(votingDead == null ? "Meeting by: " : "Reported by: " + votingReporter.name, c.clientWidth / 2 - 100, c.clientHeight / 8 + 75);
 
     if (hasVoted == true || playerIsAlive == false) {
         ctx.fillStyle = 'red';

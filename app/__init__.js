@@ -217,12 +217,16 @@ ws_s.on('connection' , (ws) => {
 						if (clientData.role != 'impostor' || clientData.cooldowns[0] != 0 || sabotageType != -1) {
 							break;
 						}
-						clientData.cooldowns[0] = 25;
-						clients.set(ws, clientData);
-						ws.send(JSON.stringify({
-							'type' : 'updateplayer',
-							'player_data' : clientData,
-						}));
+						clients.forEach((cData, client, clients) => {
+							if (cData.role == 'impostor') {
+								cData.cooldowns[0] = 25;
+								clients.set(client, cData);
+								ws.send(JSON.stringify({
+									'type' : 'updateplayer',
+									'player_data' : cData,
+								}));
+							}
+						});
 						sabotageType = message.sab_num;
 						sabotageTimer = [null, 30, 25, -1, 6][sabotageType];
 						sabotageInterval = setInterval(sabotageIntervalFunction, 1000);
