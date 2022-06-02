@@ -236,15 +236,37 @@ ws_s.on('connection' , (ws) => {
 					break;
 				case 'fix_sabotage':
 					{
-						if (message.sab_num >= 1 && message.sab_num <= 2) {
-
-						} else if (message.sab_num == 3) {
+						//console.log(sabotageType);
+						if (sabotageType >= 1 && sabotageType <= 2) {
+							let tilenum = message.tilenum;
+							if (sabotageType == 1) {
+								sabotageFixed[tilenum + 23] = true;
+							} else if (sabotageType == 2) {
+								sabotageFixed[tilenum + 25] = true;
+							}
+							//console.log(sabotageFixed);
+							if (sabotageFixed[0] == true && sabotageFixed[1] == true) {
+								clearInterval(sabotageInterval);
+								sabotageInterval = -1;
+								sabotageTimer = -1;
+								sabotageType = -1;
+								const endSabMessage = JSON.stringify({
+									'type' : 'sabotage_over',
+								});
+								clients.forEach((cData, client, clients) => {
+									client.send(endSabMessage);
+								});
+							}
+						} else if (sabotageType == 3) {
 							clearInterval(sabotageInterval);
 							sabotageInterval = -1;
 							sabotageTimer = -1;
 							sabotageType = -1;
 							const endSabMessage = JSON.stringify({
 								'type' : 'sabotage_over',
+							});
+							clients.forEach((cData, client, clients) => {
+								client.send(endSabMessage);
 							});
 						}
 					}

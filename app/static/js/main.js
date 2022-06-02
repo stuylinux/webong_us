@@ -100,6 +100,10 @@ const sabotageDescriptions = [
     ["Lights", false],
     ["Doors", false],
 ];
+const DOORS = 4;
+const LIGHTS = 3;
+const REACTOR = 1;
+const O2 = 2;
 
 
 var playerX;
@@ -496,6 +500,17 @@ function doFrameWork() {
 		} else if (keyCode == 73 /* I */ && playerRole == 'impostor' && inRange(map[playerY][playerX], -10, -19)) {
             playerInVent = true;
             keyCode = -1;
+        } else if (keyCode == 73 /* I*/ && inRange(map[playerY][playerX], -20, -25)) {
+            if ((currentSabotage == REACTOR && inRange(map[playerY][playerX], -23, -22)) || 
+                (currentSabotage == O2 && inRange(map[playerY][playerX], -25, -24)) || 
+                (currentSabotage == LIGHTS && map[playerY][playerX] == -21)) {
+                websocket.send(JSON.stringify({
+                    'type' : 'gameaction',
+                    'actiontype' : 'fix_sabotage',
+                    'tilenum' : map[playerY][playerX],
+                }));
+            }
+            keyCode = -1;
         // Sabotage
         } else if (playerRole == 'impostor' && inRange(keyCode, 0x30, 0x39)) {
             if (playerCooldowns[0] == 0) {
@@ -579,6 +594,9 @@ function doFrameWork() {
             if (map[nxg_j][nxg_i] == 1) {
                 ctx.fillStyle = '#888888';
                 ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
+            } else if (map[nxg_j][nxg_i] == -26 && currentSabotage == DOORS) {
+                ctx.fillStyle =  '#9f9f9f';
+                ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);       
             } else if (map[nxg_j][nxg_i] == 2) {
                 ctx.fillStyle =  '#bbbbbb';
                 ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
@@ -588,10 +606,10 @@ function doFrameWork() {
             } else if (gameIsStarted && playerRole == 'crewmate' && inRange(map[nxg_j][nxg_i], 3, 16) && checkInTaskList(nxg_i, nxg_j) !== false) {
 				ctx.fillStyle = '#ffff00';
 				ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
-			} else if (currentSabotage !== false && currentSabotage >= 0 && currentSabotage <= 3) {
-                if ((currentSabotage == 1 && inRange(map[nxg_j][nxg_i], -23, -22)) || 
-                    (currentSabotage == 2 && inRange(map[nxg_j][nxg_i], -25, -24)) || 
-                    (currentSabotage == 3 && map[nxg_j][nxg_i] == -21)) {
+			} else if (currentSabotage !== false && currentSabotage >= REACTOR && currentSabotage <= DOORS) {
+                if ((currentSabotage == REACTOR && inRange(map[nxg_j][nxg_i], -23, -22)) || 
+                    (currentSabotage == O2 && inRange(map[nxg_j][nxg_i], -25, -24)) || 
+                    (currentSabotage == LIGHTS && map[nxg_j][nxg_i] == -21)) {
                     ctx.fillStyle = "#CC8899";
                     ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
                 }
@@ -609,7 +627,7 @@ function doFrameWork() {
 			} else if (!inPlayerView(playerX, playerY, nxg_i + currentScrollX, nxg_j + currentScrollY, true)) {
 				ctx.fillStyle = '#101010';
 				ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
-			} else if (currentSabotage == 3 && playerRole == 'crewmate' && Math.abs(playerX - nxg_i) + Math.abs(playerY - nxg_j) > darknessViewSize) {
+			} else if (currentSabotage == LIGHTS && playerRole == 'crewmate' && Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > darknessViewSize) {
                 ctx.fillStyle = '#2a2a2a';
                 ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
             }
@@ -750,12 +768,12 @@ function inPlayerView(px, py, ox, oy, alr) {
     } else if (ox == px) {
         while (oy != py) {
             oy += (oy < py) ? 1 : -1;
-            if (inRange(map[oy][px], 1, 1)) { return false; }
+            if (inRange(map[oy][px], 1, 1) || (currentSabotage == DOORS && map[oy][ox] == -26)) { return false; }
         }
     } else if (oy == py) {
         while (ox != px) {
             ox += (ox < px) ? 1 : -1;
-            if (inRange(map[py][ox], 1, 1)) { return false; }
+            if (inRange(map[py][ox], 1, 1) || (currentSabotage == DOORS && map[oy][ox] == -26)) { return false; }
         }
     }
 
@@ -771,11 +789,12 @@ function inPlayerView(px, py, ox, oy, alr) {
     while (Math.round(temp_y) != py || Math.round(temp_x) != px) {
         temp_x += dx;
         temp_y += dy;
-        if (inRange(map[Math.trunc(Math.round(temp_y))][Math.trunc(Math.round(temp_x))], 1, 1) /* if tile equals 1 (wall) */) {
+        let tile = map[Math.trunc(Math.round(temp_y))][Math.trunc(Math.round(temp_x))];
+        if (inRange(tile, 1, 1) || (currentSabotage == DOORS && tile == -26)) {
             if (alr) {
                 let xdir = dx > 0 ? 1 : -1;
                 let ydir = dy > 0 ? 1 : -1;
-                if (inRange(map[oy][ox], 1 ,2)) {
+                if (inRange(map[oy][ox], 1, 1) || (currentSabotage == DOORS && map[oy][ox] == -26)) {
                     return inPlayerView(px, py, ox + xdir, oy, false) | inPlayerView(px, py, ox, oy + ydir, false);
                 }
             }
