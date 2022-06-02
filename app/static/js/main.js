@@ -125,7 +125,7 @@ var taskInterval = -1;
 var taskTimer;
 var currentTaskIndex;
 
-var meetingTimer = -1;
+var meetingTimer = 15;
 
 var gameIsStarted = false;
 var winningTeam = false;
@@ -719,6 +719,9 @@ function doFrameWork() {
 	
 	// Draw tablet if player is doing task
 	// If impostor, show cooldowns on side ui
+    if (document.getElementById('meetingCooldown') != undefined && gameIsStarted) {
+        document.getElementById('meetingCooldown').textContent = meetingTimer;
+    }
 	if (playerRole == 'crewmate' && taskInterval !== -1) {
 		ctx.fillStyle = "#404040";
 		ctx.fillRect(c.clientWidth / 8, c.clientHeight / 8, c.clientWidth * 6 / 8, c.clientHeight * 6 / 8);
@@ -880,7 +883,7 @@ function votingScreen() {
     ctx.fillStyle = "#ffffff";
     ctx.fillText("Voting:", c.clientWidth / 2 - 50, c.clientHeight / 8 + 40);
     ctx.font = "16px Arial";
-    ctx.fillText(votingDead == null ? "Meeting by: " : "Reported by: " + votingReporter.name, c.clientWidth / 2 - 100, c.clientHeight / 8 + 75);
+    ctx.fillText((votingDead == null ? "Meeting by: " : "Reported by: ") + votingReporter.name, c.clientWidth / 2 - 100, c.clientHeight / 8 + 75);
 
     if (hasVoted == true || playerIsAlive == false) {
         ctx.fillStyle = 'red';
