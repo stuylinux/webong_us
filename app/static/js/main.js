@@ -697,11 +697,13 @@ function doFrameWork() {
             sabotageDescriptions[currentSabotage][0] + 
             (sabotageDescriptions[currentSabotage][1] ? (' : ' + sabotageTimer) : '') + "</strong><br>";
         if (currentSabotage >= 1 && currentSabotage <= 2) {
-            let radius = (globalTimer % 60 >= 30) ? 60 - (globalTimer % 60) : (globalTimer % 60)
+            const cycleLength = 120;
+            const halfCycle = cycleLength / 2;
+            let radius = (globalTimer % cycleLength >= halfCycle) ? 60 - (globalTimer % cycleLength) : (globalTimer % cycleLength)
             for (let j = 0; j <= c.clientHeight; j += c.clientHeight) {
                 for (let i = 0; i <= c.clientWidth; i += c.clientWidth) {
                     ctx.beginPath();
-                    ctx.arc(i, j, radius / 30 * c.clientWidth / 6, 0, 2 * Math.PI);
+                    ctx.arc(i, j, radius / halfCycle * c.clientWidth / 6, 0, 2 * Math.PI);
                     ctx.fillStyle = 'red';
                     ctx.fill();
                 }
