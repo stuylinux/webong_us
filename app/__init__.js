@@ -20,6 +20,9 @@ var gameIsStarted = false;
 var gameInterval = -1;
 var gameTimer;
 
+var meetingTimer;
+var meetingInterval = -1;
+
 var sabotageInterval = -1;
 var sabotageTimer;
 var sabotageType = -1;
@@ -159,6 +162,8 @@ ws_s.on('connection' , (ws) => {
 						});	
 					}
 					break;
+				case 'meeting':
+					if (meetingTimer > 0) { break; }
 				case 'report':
 					// New scope so i can declare vars
 					{
@@ -180,6 +185,7 @@ ws_s.on('connection' , (ws) => {
 							client.send(messageToSend);
 						})
 						clearInterval(gameInterval);
+						clearInterval(meetingInterval);
 					}
 					break;
 				case 'vote':
@@ -377,11 +383,19 @@ ws_s.on('connection' , (ws) => {
 				gameTimer = 0;
 				gameIsStarted = true;
 				gameInterval = setInterval(gameNextSecond, 1000);
-			} else {
+				meetingTimer = 15;
+				meetingInterval = setInterval(meetingIntervalFunction, 1000);
+			} else if (clients.size < 4) {
 				ws.send(JSON.stringify({
 					'type' : 'startgame',
 					'ok' : false,
 					'message' : 'Not enough players!',
+				}));
+			} else if (gameIsStarted) {
+				ws.send(JSON.stringify({
+					'type' : 'startgame',
+					'ok' : false,
+					'message' : 'Game already started',
 				}));
 			}
 		}
@@ -500,6 +514,19 @@ function sabotageIntervalFunction() {
 	}
 }
 
+function meetingIntervalFunction() {
+	if (meetingTimer > 0) {
+		meetingTimer--;
+	}
+	const meetingTimerMessage = JSON.stringify({
+		'type' : 'meeting_time',
+		'time' : meetingTimer,
+	});
+	clients.forEach((cData, client, clients) => {
+		client.send(meetingTimerMessage);
+	});
+}
+
 const tableSpots = [
 	[70, 14],
 	[72, 14],
@@ -604,6 +631,8 @@ function calculateVotes() {
 	setTimeout(() => {
 		if (gameIsStarted == true) {
 			assignPositionsAroundTable();
+			meetingTimer = 15;
+			meetingInterval = setInterval(meetingIntervalFunction, 1000);
 			gameInterval = setInterval(gameNextSecond, 1000);
 		} 
 	}, 4500);

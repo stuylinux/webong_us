@@ -51,6 +51,7 @@ function promptName() {
     promptNameDraw();
 }
 
+var mapLoaded = false;
 var mapRequested = false;
 var map = [[]];
 var mapdata = [];
@@ -124,6 +125,8 @@ var taskInterval = -1;
 var taskTimer;
 var currentTaskIndex;
 
+var meetingTimer = -1;
+
 var gameIsStarted = false;
 var winningTeam = false;
 var winningPlayersList;
@@ -144,6 +147,8 @@ function startGame() {
     deadBodies = [];
     otherPlayers = [];
 
+    mapRequested = false;
+
     currentSabotage = false;
 
     winningTeam = false;
@@ -154,12 +159,21 @@ function startGame() {
     taskList = [];
     currentTaskIndex = -1;
 
+    viewingCams = false;
     oldPlayerX = -1;
     oldPlayerY = -1;
     oldInVent = false;
 
     document.getElementById('uiHolder').innerHTML = '';
     websocket = new WebSocket(websocketURL);
+    setTimeout(() => {
+        if (websocket.readyState !== 1) {
+            ctx.fillStyle = 'black';
+            ctx.font = "20px Arial";
+            ctx.fillText("Couldn't establish a websocket connection to the server!", c.clientWidth / 8, c.clientWidth * 6 / 8);
+            alert("Couldn't establish a websocket connection to the server!");
+        }
+    }, 3000);
 	websocket.onopen = (e) => {
         websocket.send(JSON.stringify({
             'type' : 'init',
@@ -168,8 +182,12 @@ function startGame() {
     };
     websocket.onmessage = (e) => {
 		if (mapRequested === false) {
-			mapRequested = true;
-			fetchMap();
+            mapRequested = true;
+            if (mapLoaded === true) {
+                requestID = window.requestAnimationFrame(nextGameFrame);
+            } else {
+			    fetchMap();
+            }
 		}
 		
         const msg = JSON.parse(e.data); 
@@ -331,6 +349,9 @@ function startGame() {
             case 'sabotage_over':
                 currentSabotage = false;
                 break;
+            case 'meeting_time':
+                meetingTimer = msg.time;
+                break;
             case 'report':
                 window.cancelAnimationFrame(requestID);
                 requestID = window.requestAnimationFrame(votingScreen);
@@ -351,6 +372,7 @@ function startGame() {
 				winningTeam = msg.winner;
                 gameIsStarted = false;
                 document.getElementById("sabotageHolder").innerHTML = "";
+                keyCode = -1;
 				requestID = window.requestAnimationFrame(winningDraw);
                 clearInterval(taskInterval);
 				winningPlayersList = [];
@@ -412,6 +434,9 @@ var currentScrollX = Math.max(0, playerX - centerTileOffsetX);
 var currentScrollY = Math.max(0, playerX - centerTileOffsetX);
 var nxg_j, nxg_i;
 
+var viewingCams = false;
+var roomWatching = -1;
+
 var oldPlayerX = -1;
 var oldPlayerY = -1;
 var oldInVent = false;
@@ -444,11 +469,10 @@ function winningDraw() {
 	if (keyCode != 0x0d) {
 		requestID = window.requestAnimationFrame(winningDraw);
 	} else {
-        setTimeout(() => {
-            window.cancelAnimationFrame(requestID);
-		    startGame();
-        }, 0);
         keyCode = -1;
+        mapLoaded = true;
+		startGame();
+        
 	}
 }
 
@@ -462,7 +486,7 @@ function nextGameFrame() {
 
 function doFrameWork() {
 	// Check keyboard input
-    if (oldInVent === false) {
+    if (oldInVent === false && viewingCams === false) {
         // Movement
 		if (globalTimer % moveSpeed == 0) {
 			if (keyCode == 0x57 /* W */ && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
@@ -500,7 +524,8 @@ function doFrameWork() {
 		} else if (keyCode == 73 /* I */ && playerRole == 'impostor' && inRange(map[playerY][playerX], -10, -19)) {
             playerInVent = true;
             keyCode = -1;
-        } else if (keyCode == 73 /* I*/ && inRange(map[playerY][playerX], -20, -25)) {
+        // Fix sabotages
+        } else if (keyCode == 73 /* I */ && inRange(map[playerY][playerX], -20, -25)) {
             if ((currentSabotage == REACTOR && inRange(map[playerY][playerX], -23, -22)) || 
                 (currentSabotage == O2 && inRange(map[playerY][playerX], -25, -24)) || 
                 (currentSabotage == LIGHTS && map[playerY][playerX] == -21)) {
@@ -510,6 +535,17 @@ function doFrameWork() {
                     'tilenum' : map[playerY][playerX],
                 }));
             }
+            keyCode = -1;
+        // Call meeting
+        } else if (keyCode == 73 /* I */ && map[playerY][playerX] == 20) {
+            if (meetingTimer == 0) {
+                websocket.send(JSON.stringify({
+                    'type' : 'gameaction',
+                    'actiontype' : 'meeting',
+                    'body_data' : null,
+                }));
+            }
+            meetingTimer = 15;
             keyCode = -1;
         // Sabotage
         } else if (playerRole == 'impostor' && inRange(keyCode, 0x30, 0x39)) {
@@ -537,7 +573,7 @@ function doFrameWork() {
 				taskInterval = setInterval(taskIntervalFunction, 1000);
 				keyCode = -1;
 		}
-    } else {
+    } else if (oldInVent === true) {
         if (keyCode == 73 /* I */) {
             playerInVent = false;
             keyCode = -1;
@@ -553,7 +589,7 @@ function doFrameWork() {
             }
             keyCode = -1;
         }
-    }
+    } else if (co)
 
     if (playerY != oldPlayerY || playerX != oldPlayerX || playerInVent != oldInVent) {
 		if (playerRole == 'crewmate') {
@@ -770,12 +806,12 @@ function inPlayerView(px, py, ox, oy, alr) {
     } else if (ox == px) {
         while (oy != py) {
             oy += (oy < py) ? 1 : -1;
-            if (inRange(map[oy][px], 1, 1) || (currentSabotage == DOORS && map[oy][ox] == -26)) { return false; }
+            if (tileBlocksView(map[oy][ox], px, py)) { return false; }
         }
     } else if (oy == py) {
         while (ox != px) {
             ox += (ox < px) ? 1 : -1;
-            if (inRange(map[py][ox], 1, 1) || (currentSabotage == DOORS && map[oy][ox] == -26)) { return false; }
+            if (tileBlocksView(map[oy][ox], px, py)) { return false; }
         }
     }
 
@@ -792,11 +828,11 @@ function inPlayerView(px, py, ox, oy, alr) {
         temp_x += dx;
         temp_y += dy;
         let tile = map[Math.trunc(Math.round(temp_y))][Math.trunc(Math.round(temp_x))];
-        if (inRange(tile, 1, 1) || (currentSabotage == DOORS && tile == -26)) {
+        if (tileBlocksView(tile, px, py)) {
             if (alr) {
                 let xdir = dx > 0 ? 1 : -1;
                 let ydir = dy > 0 ? 1 : -1;
-                if (inRange(map[oy][ox], 1, 1) || (currentSabotage == DOORS && map[oy][ox] == -26)) {
+                if (tileBlocksView(map[oy][ox], px, py)) {
                     return inPlayerView(px, py, ox + xdir, oy, false) | inPlayerView(px, py, ox, oy + ydir, false);
                 }
             }
@@ -805,6 +841,10 @@ function inPlayerView(px, py, ox, oy, alr) {
     }
     
     return true;
+}
+
+function tileBlocksView(tilenum, px, py) {
+    return tilenum == 1 || (currentSabotage == DOORS && tilenum == -26 && map[py][px] != -26);
 }
 
 function votingScreen() {
