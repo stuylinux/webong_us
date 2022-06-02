@@ -342,7 +342,7 @@ ws_s.on('connection' , (ws) => {
 			}
 		} else if (message.type == 'startgame') {
 			let clientData = clients.get(ws);
-			if (clientData.host && !gameIsStarted /*&& clients.size >= 4*/) {
+			if (clientData.host && !gameIsStarted && clients.size >= 4) {
 				gameIsStarted = true;
 				let impostorIndexes = (clients.size < 6) ? [randInt(clients.size)] : getDistinctRandomInts(clients.size);
 				let clientsArray = [];
