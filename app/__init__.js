@@ -17,12 +17,21 @@ const clients = new Map();
 const colorArray = ['#c51111', '#123ed1', '#117f2d', '#ed54ba', '#ef7d0d', '#F6F657', '#3f474e', '#6b2fbb', '#71491e', '#50ef39'];
 var gameIsStarted = false;
 
-var gameInterval;
+var gameInterval = -1;
 var gameTimer;
+
+var sabotageInterval = -1;
+var sabotageTimer;
+var sabotageType = -1;
+var sabotageFixed = [false, false];
 
 var votes;
 
 ws_s.on('connection' , (ws) => {
+	if (clients.size == 0) {
+		sabotageType = -1;
+	}
+
 	const id = genRandomID();
 	let color = '';
 	for (let i = 0; i < colorArray.length; i++) {
@@ -196,6 +205,50 @@ ws_s.on('connection' , (ws) => {
 						}
 					}
 					break;
+				case 'sabotage':
+					{
+						let clientData = clients.get(ws);
+						if (clientData.role != 'impostor' || clientData.cooldowns[0] != 0 || sabotageType != -1) {
+							break;
+						}
+						clientData.cooldowns[0] = 25;
+						clients.set(ws, clientData);
+						ws.send(JSON.stringify({
+							'type' : 'updateplayer',
+							'player_data' : clientData,
+						}));
+						sabotageType = message.sab_num;
+						sabotageTimer = [null, 30, 25, -1, 6][sabotageType];
+						sabotageInterval = setInterval(sabotageIntervalFunction, 1000);
+						const sabTypeMessage = JSON.stringify({
+							'type' : 'sabotage',
+							'sab_num' : sabotageType,
+						});
+						const sabTimerMessage = JSON.stringify({
+							'type' : 'sabotage_time',
+							'time' : sabotageTimer,
+						});
+						clients.forEach((cData, client, clients) => {
+							client.send(sabTypeMessage);
+							client.send(sabTimerMessage);
+						});
+					}
+					break;
+				case 'fix_sabotage':
+					{
+						if (message.sab_num >= 1 && message.sab_num <= 2) {
+
+						} else if (message.sab_num == 3) {
+							clearInterval(sabotageInterval);
+							sabotageInterval = -1;
+							sabotageTimer = -1;
+							sabotageType = -1;
+							const endSabMessage = JSON.stringify({
+								'type' : 'sabotage_over',
+							});
+						}
+					}
+					break;
 				case 'kill':
 					let deadplayername = message.player_data.name;
 					let killerData = clients.get(ws);
@@ -341,8 +394,10 @@ ws_s.on('connection' , (ws) => {
 		if (clients.size == 0) {
 			gameIsStarted = false;
 			clearInterval(gameInterval);
+			clearInterval(sabotageInterval);
 			//clients = new Map();
 			gameTimer = -1;
+			sabotageType = -1;
 		} else {
 			let crewmatesAlive = 0;
 			let numImpostors = 0;
@@ -374,7 +429,7 @@ function gameNextSecond() {
 	clients.forEach((clientData, client, clients) => {
 		if (clientData.role == 'impostor' && gameTimer != 0) {
 			//console.log(clientData);
-			if (!clientData.in_vent && clientData.cooldowns[0] > 0) {clientData.cooldowns[0]--;}
+			if (!clientData.in_vent && clientData.cooldowns[0] > 0 && sabotageType == -1) {clientData.cooldowns[0]--;}
 			if (!clientData.in_vent && clientData.cooldowns[1] > 0) {clientData.cooldowns[1]--;}
 
 			clients.set(client, clientData);
@@ -388,10 +443,45 @@ function gameNextSecond() {
 	gameTimer++;
 }
 
+function sabotageIntervalFunction() {
+	if (sabotageTimer-- == 0) {
+		// Reactor or O2
+		if (sabotageType >= 1 && sabotageType <= 2) {
+			const impostorsWinMessage = JSON.stringify({
+				'type' : 'gameover',
+				'winner' : 'impostor',
+			});
+			clients.forEach((cData, client, clients) => {
+				client.send(impostorsWinMessage);
+			});
+			clearInterval(sabotageInterval);
+			sabotageType = -1;
+		// Doors
+		} else if (sabotageType == 4) {
+			const doorsSabDoneMessage = JSON.stringify({
+				'type' : 'sabotage_over',
+			});
+			clients.forEach((cData, client, clients) => {
+				client.send(doorsSabDoneMessage);
+			});
+			clearInterval(sabotageInterval);
+			sabotageType = -1;
+		}
+	} else if (sabotageTimer > 0) {
+		const sabotageTimeUpdateMessage = JSON.stringify({
+			'type' : 'sabotage_time',
+			'time' : sabotageTimer,
+		});
+		clients.forEach((cData, client, clients) => {
+			client.send(sabotageTimeUpdateMessage);
+		});
+	}
+}
+
 const tableSpots = [
-	[70, 13],
-	[72, 13],
-	[74, 13],
+	[70, 14],
+	[72, 14],
+	[74, 14],
 	[75, 16],
 	[75, 18],
 	[75, 20],

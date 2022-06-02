@@ -66,6 +66,7 @@ const centerTileOffsetY = Math.trunc(c.clientHeight / tileSize / 2);
 
 const impostorViewSize = 14;
 const crewmateViewSize = 11;
+const darknessViewSize = 3;
 
 const moveSpeed = 4;
 
@@ -89,7 +90,17 @@ const taskRooms = [
 	"Medbay",
 ];
 const numOfTasks = 6;
+
 var taskList;
+
+const sabotageDescriptions = [
+    ["", false],
+    ["Reactor Meltdown", true],
+    ["Oxygen Depleted", true],
+    ["Lights", false],
+    ["Doors", false],
+];
+
 
 var playerX;
 var playerY;
@@ -101,6 +112,9 @@ var playerIsAlive;
 var playerID;
 var role;
 var playerCooldowns = Array(2);
+
+var currentSabotage = false;
+var sabotageTimer = -1;
 
 var taskInterval = -1;
 var taskTimer;
@@ -125,6 +139,8 @@ function startGame() {
     gameIsStarted = false;
     deadBodies = [];
     otherPlayers = [];
+
+    currentSabotage = false;
 
     winningTeam = false;
     winningPlayersList = [];
@@ -291,11 +307,25 @@ function startGame() {
 						document.getElementById("uiHolder").appendChild(taskHTMLList);
 					} else {
 						const cooldownDiv = document.createElement('div');
-						cooldownDiv.innerHTML = "Kill Cooldown: <span id='killCooldown'></span><br>Sabotage Cooldown: <span id='sabotageCooldown'></span>";
+						cooldownDiv.innerHTML = `Kill Cooldown: <span id='killCooldown'></span><br>Sabotage Cooldown: <span id='sabotageCooldown'></span>
+                        <br><br>
+                        <div>1 - Reactor Sabotage</div>
+                        <div>2 - O2 Sabotage</div>
+                        <div>3 - Lights Sabotage</div>
+                        <div>4 - Doors Sabotage</div>`;
 						document.getElementById("uiHolder").appendChild(cooldownDiv);
 					}
 					
                 }
+                break;
+            case 'sabotage':
+                currentSabotage = msg.sab_num;
+                break;
+            case 'sabotage_time':
+                sabotageTimer = msg.time;
+                break;
+            case 'sabotage_over':
+                currentSabotage = false;
                 break;
             case 'report':
                 window.cancelAnimationFrame(requestID);
@@ -316,6 +346,7 @@ function startGame() {
 				window.cancelAnimationFrame(requestID);
 				winningTeam = msg.winner;
                 gameIsStarted = false;
+                document.getElementById("sabotageHolder").innerHTML = "";
 				requestID = window.requestAnimationFrame(winningDraw);
                 clearInterval(taskInterval);
 				winningPlayersList = [];
@@ -428,6 +459,7 @@ function nextGameFrame() {
 function doFrameWork() {
 	// Check keyboard input
     if (oldInVent === false) {
+        // Movement
 		if (globalTimer % moveSpeed == 0) {
 			if (keyCode == 0x57 /* W */ && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
 				playerY--;
@@ -442,6 +474,7 @@ function doFrameWork() {
 				playerX++;
 				keyCode = -1;
 			} 
+        // Kill
 		} else if (keyCode == 79 /* O */ && playerRole == 'impostor') {
             if (playerCooldowns[1] == 0) {
                 for (let i = 0; i < otherPlayers.length; i++) {
@@ -459,10 +492,21 @@ function doFrameWork() {
                 }
             }
 			keyCode = -1;
+        // Venting
 		} else if (keyCode == 73 /* I */ && playerRole == 'impostor' && inRange(map[playerY][playerX], -10, -19)) {
-            //console.log('I pressed');
             playerInVent = true;
             keyCode = -1;
+        // Sabotage
+        } else if (playerRole == 'impostor' && inRange(keyCode, 0x30, 0x39)) {
+            if (playerCooldowns[0] == 0) {
+                websocket.send(JSON.stringify({
+                    'type' : 'gameaction',
+                    'actiontype' : 'sabotage',
+                    'sab_num' : (keyCode - 0x30),
+                }));
+            }
+            keyCode = -1;
+        // Reporting bodies and tasks
         } else if (keyCode == 85 /* U */ && playerIsAlive && checkForBody(playerX, playerY) !== false) {
             console.log(checkForBody(playerX, playerY));
             websocket.send(JSON.stringify({
@@ -548,21 +592,26 @@ function doFrameWork() {
         }
     }
     // Black out area's beyond character vision
+    let mapViewSize = playerRole == 'impostor' ? impostorViewSize : crewmateViewSize;
+    let realViewSize = (currentSabotage == 3 && playerRole == 'crewmate') ? darknessViewSize : mapViewSize;
 	for (nxg_j = 0; nxg_j < c.clientHeight / tileSize; nxg_j++) {
 		for (nxg_i = 0; nxg_i < c.clientWidth / tileSize; nxg_i++) {
-			if (playerIsAlive && Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) {
+			if (playerIsAlive && Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > mapViewSize) {
 				ctx.fillStyle = '#000000';
 				ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
 			} else if (!inPlayerView(playerX, playerY, nxg_i + currentScrollX, nxg_j + currentScrollY, true)) {
 				ctx.fillStyle = '#101010';
 				ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
-			}
+			} else if (currentSabotage == 3 && playerRole == 'crewmate' && Math.abs(playerX - nxg_i) + Math.abs(playerY - nxg_j) > darknessViewSize) {
+                ctx.fillStyle = '#2a2a2a';
+                ctx.fillRect(nxg_i * tileSize, nxg_j * tileSize, tileSize, tileSize);
+            }
 		}   
 	}
 	
 	// Draw any dead bodies 
 	for (nxg_i = 0; nxg_i < deadBodies.length; nxg_i++) {
-		if (playerIsAlive == false || (Math.abs(playerX - deadBodies[nxg_i].pos[0]) + Math.abs(playerY - deadBodies[nxg_i].pos[1]) < (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) &&
+		if (playerIsAlive == false || (Math.abs(playerX - deadBodies[nxg_i].pos[0]) + Math.abs(playerY - deadBodies[nxg_i].pos[1]) <= realViewSize) &&
             inPlayerView(playerX, playerY, deadBodies[nxg_i].pos[0], deadBodies[nxg_i].pos[1], false)
             ) {
             drawBody(
@@ -573,7 +622,7 @@ function doFrameWork() {
     }
     // Draw other visible players
     for (nxg_i = 0; nxg_i < otherPlayers.length; nxg_i++) {
-        if (playerIsAlive == false || (Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) < (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize)) && 
+        if (playerIsAlive == false || (Math.abs(playerX - otherPlayers[nxg_i].pos[0]) + Math.abs(playerY - otherPlayers[nxg_i].pos[1]) <= realViewSize) && 
             otherPlayers[nxg_i].alive && !otherPlayers[nxg_i].in_vent &&
             inPlayerView(playerX, playerY, otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], false)
             ) {
@@ -617,6 +666,25 @@ function doFrameWork() {
 			}
 		}
 	}
+
+    if (currentSabotage !== false) {
+        document.getElementById('sabotageHolder').innerHTML = "<strong>Sabotage &#8212; " +
+            sabotageDescriptions[currentSabotage][0] + 
+            (sabotageDescriptions[currentSabotage][1] ? (' : ' + sabotageTimer) : '') + "</strong><br>";
+        if (currentSabotage >= 1 && currentSabotage <= 2) {
+            let radius = (globalTimer % 60 >= 30) ? 60 - (globalTimer % 60) : (globalTimer % 60)
+            for (let j = 0; j <= c.clientHeight; j += c.clientHeight) {
+                for (let i = 0; i <= c.clientWidth; i += c.clientWidth) {
+                    ctx.beginPath();
+                    ctx.arc(i, j, radius / 30 * c.clientWidth / 6, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'red';
+                    ctx.fill();
+                }
+            }
+        }
+    } else {
+        document.getElementById('sabotageHolder').innerHTML = "";
+    }
 
     if (gameIsStarted == false) {
         ctx.fillStyle = 'green';
@@ -776,7 +844,7 @@ function ejectScreen() {
     if (typeof(ejectedPlayer) != 'undefined' && ejectedPlayer.name != '__NONE__') {
         drawPlayerScale(
             Math.trunc(c.clientWidth / tileSize / 2), Math.trunc(c.clientHeight / tileSize / 2), 
-           0, 0, ejectedPlayer.color, ejectedPlayer.name, 1.5);
+           0, 0, ejectedPlayer.color, "", 1.5);
     }
     ctx.font = "36px Arial";
     ctx.fillStyle = 'white';
