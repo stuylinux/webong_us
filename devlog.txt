@@ -1,0 +1,51 @@
+NastyFightingTurtles: Eric Guo, Andy Lin, Justin Morrill, Cameron Nelson, Rayat Roy, 
+SoftDev
+P04 -- AmongUs
+2022-06-02
+
+2022-05-24 ericG, justinM, cameronN,rayatR
+- set up basic node information
+- work on map
+
+2022-05-25 cameronN
+- setup express.js
+
+2022-05-26 ericG, justinM, cameronN
+- basic map
+- preliminary code to load the map
+
+2022-05-26 rayatR
+- design doc update
+
+2022-05-27 cameronN
+- player and impostor programming
+
+2022-05-27 ericG
+- finished base map 
+
+2022-05-28 cameronN
+- Cooldowns work and movement speed
+
+2022-05-29 ericG, justinM, cameronN, rayatR
+- Map completed with all required features
+- Tasks implemented
+- Obstacles implemented
+
+2022-05-30 cameronN
+- killing works properly
+
+2022-05-30 ericG, justinM, cameronN, rayatR
+- play testing for bugs
+- fixed killing ghosts bug
+- fixed multiple bodies bug
+
+2022-05-30 cameronN
+- voting
+
+2022-06-01 ericG, justinM, cameronN, rayatR
+- play testing for even more bugs
+- fixed timing bug
+- fixed body color bug
+
+2022-06-02 ericG, justinM, cameronN, rayatR
+- first ever droplet playtest works
