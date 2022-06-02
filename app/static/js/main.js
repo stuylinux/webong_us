@@ -588,7 +588,14 @@ function doFrameWork() {
             } else if (gameIsStarted && playerRole == 'crewmate' && inRange(map[nxg_j][nxg_i], 3, 16) && checkInTaskList(nxg_i, nxg_j) !== false) {
 				ctx.fillStyle = '#ffff00';
 				ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
-			}				
+			} else if (currentSabotage !== false && currentSabotage >= 0 && currentSabotage <= 3) {
+                if ((currentSabotage == 1 && inRange(map[nxg_j][nxg_i], -23, -22)) || 
+                    (currentSabotage == 2 && inRange(map[nxg_j][nxg_i], -25, -24)) || 
+                    (currentSabotage == 3 && map[nxg_j][nxg_i] == -21)) {
+                    ctx.fillStyle = "#CC8899";
+                    ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
+                }
+            }			
         }
     }
     // Black out area's beyond character vision
