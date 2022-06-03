@@ -598,7 +598,7 @@ function doFrameWork() {
             }
             keyCode = -1;
         }
-    } else if (co)
+    } else if (false) {}
 
     if (playerY != oldPlayerY || playerX != oldPlayerX || playerInVent != oldInVent) {
 		if (playerRole == 'crewmate') {
