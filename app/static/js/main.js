@@ -498,16 +498,16 @@ function doFrameWork() {
     if (oldInVent === false && viewingCams === false) {
         // Movement
 		if (globalTimer % moveSpeed == 0) {
-			if (keyCode == 0x57 /* W */ && playerY != 0 && !inRange(map[playerY - 1][playerX], 1, 2)) {
+			if (keyCode == 0x57 /* W */ && playerY != 0 && !tileBlocksMvmt(map[playerY - 1][playerX])) {
 				playerY--;
 				keyCode = -1;
-			} else if (keyCode == 0x41 /* A */ && playerX != 0 && !inRange(map[playerY][playerX - 1], 1, 2)) {
+			} else if (keyCode == 0x41 /* A */ && playerX != 0 && !tileBlocksMvmt(map[playerY][playerX - 1])) {
 				playerX--;
 				keyCode = -1;
-			} else if (keyCode == 0x53 /* S */ && playerY != map.length - 1 && !inRange(map[playerY + 1][playerX], 1, 2)) {
+			} else if (keyCode == 0x53 /* S */ && playerY != map.length - 1 && !tileBlocksMvmt(map[playerY + 1][playerX])) {
 				playerY++;
 				keyCode = -1;
-			} else if (keyCode == 0x44 /* D */ && playerX != map[0].length - 1 && !inRange(map[playerY][playerX + 1], 1, 2)){
+			} else if (keyCode == 0x44 /* D */ && playerX != map[0].length - 1 && !tileBlocksMvmt(map[playerY][playerX + 1])){
 				playerX++;
 				keyCode = -1;
 			} 
@@ -598,7 +598,12 @@ function doFrameWork() {
             }
             keyCode = -1;
         }
-    } else if (false) {}
+    } else if (viewingCams === true) {
+        if (keyCode == 73 /* I */) {
+            viewingCams = false;
+            keyCode = -1;
+        }
+    }
 
     if (playerY != oldPlayerY || playerX != oldPlayerX || playerInVent != oldInVent) {
 		if (playerRole == 'crewmate') {
@@ -663,7 +668,7 @@ function doFrameWork() {
     }
     // Black out area's beyond character vision
     let mapViewSize = playerRole == 'impostor' ? impostorViewSize : crewmateViewSize;
-    let realViewSize = (currentSabotage == 3 && playerRole == 'crewmate') ? darknessViewSize : mapViewSize;
+    let realViewSize = (currentSabotage == 3 && playerRole == 'crewmate' && playerIsAlive) ? darknessViewSize : mapViewSize;
 	for (nxg_j = 0; nxg_j < c.clientHeight / tileSize; nxg_j++) {
 		for (nxg_i = 0; nxg_i < c.clientWidth / tileSize; nxg_i++) {
 			if (playerIsAlive && Math.abs(nxg_j - (playerY - currentScrollY)) + Math.abs(nxg_i - (playerX - currentScrollX)) > mapViewSize) {
@@ -747,7 +752,7 @@ function doFrameWork() {
         if (currentSabotage >= 1 && currentSabotage <= 2) {
             const cycleLength = 120;
             const halfCycle = cycleLength / 2;
-            let radius = (globalTimer % cycleLength >= halfCycle) ? 60 - (globalTimer % cycleLength) : (globalTimer % cycleLength)
+            let radius = (globalTimer % cycleLength >= halfCycle) ? cycleLength - (globalTimer % cycleLength) : (globalTimer % cycleLength)
             for (let j = 0; j <= c.clientHeight; j += c.clientHeight) {
                 for (let i = 0; i <= c.clientWidth; i += c.clientWidth) {
                     ctx.beginPath();
@@ -859,9 +864,13 @@ function tileBlocksView(tilenum, px, py) {
     return tilenum == 1 || (currentSabotage == DOORS && tilenum == -26 && map[py][px] != -26);
 }
 
+function tileBlocksMvmt(tilenum, px, py) {
+    return tileBlocksView(tilenum, px, py) || tilenum == 2;
+}
+
 function votingScreen() {
     if (keyCode >= 0x30 && keyCode <= 0x39) {
-        if (hasVoted == false && playerIsAlive) {
+        if (hasVoted == false && playerIsAlive && (keyCode == 0x30 ? 9 : keyCode - 0x31) < voteableArray.length) {
             hasVoted = true;
             websocket.send(JSON.stringify({
                 'type' : 'gameaction',
