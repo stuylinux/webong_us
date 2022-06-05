@@ -56,6 +56,7 @@ ws_s.on('connection' , (ws) => {
 		'cooldowns' : [-1, -1],
 		'in_vent' : false,
 		'alive' : true,
+		'has_called_meeting' : false,
 		'has_voted' : false,
 		'tasksdone' : false,
 	}
@@ -162,7 +163,12 @@ ws_s.on('connection' , (ws) => {
 					}
 					break;
 				case 'meeting':
-					if (meetingTimer > 0) { break; }
+					if (meetingTimer > 0 || clients.get(ws)['has_called_meeting'] == true) { break; }
+					{
+						let clientData = clients.get(ws);
+						clientData.has_called_meeting = true;
+						clients.set(ws, clientData);
+					}
 				case 'report':
 					// New scope so i can declare vars
 					{
