@@ -524,7 +524,7 @@ function doFrameWork() {
 		} else if (keyCode == 79 /* O */ && playerRole == 'impostor') {
             if (playerCooldowns[1] == 0) {
                 for (let i = 0; i < otherPlayers.length; i++) {
-                    if (distanceFromPlayer(otherPlayers[i]) <= 2 && otherPlayers[i].role == 'crewmate' && otherPlayers[i].alive) {
+                    if (distanceFromPlayer(otherPlayers[i]) <= 3 && otherPlayers[i].role == 'crewmate' && otherPlayers[i].alive) {
                         websocket.send(JSON.stringify({
                             'type' : 'gameaction',
                             'actiontype' : 'kill',
@@ -662,7 +662,7 @@ function doFrameWork() {
             } else if (inRange(map[nxg_j][nxg_i], -10, -19)) {
                 ctx.fillStyle = '#3f3f3f';
                 ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
-            } else if (gameIsStarted && (playerRole == 'impostor' || (inRange(map[nxg_j][nxg_i], 3, 16) && checkInTaskList(nxg_i, nxg_j) !== false))) {
+            } else if (gameIsStarted && inRange(map[nxg_j][nxg_i], 3, 16) && (playerRole == 'impostor' || checkInTaskList(nxg_i, nxg_j) !== false)) {
 				ctx.fillStyle = '#ffff00';
 				ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
 			} else if (currentSabotage !== false && currentSabotage >= REACTOR && currentSabotage <= DOORS) {
