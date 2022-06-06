@@ -118,6 +118,8 @@ var playerID;
 var role;
 var playerCooldowns = Array(2);
 
+var playerHasCalledMeeting = false;
+
 var currentSabotage = false;
 var sabotageTimer = -1;
 
@@ -143,6 +145,9 @@ function startGame() {
     playerCooldowns = [-1, -1];
     playerInVent = false;
     playerIsAlive = true;
+	
+	playerHasCalledMeeting = false;
+	
     gameIsStarted = false;
     deadBodies = [];
     otherPlayers = [];
@@ -367,6 +372,9 @@ function startGame() {
                 voteableArray = [{'name' : '__NONE__', color : '#ffffff'}];
                 votingDead = msg.body_data;
                 votingReporter = msg.reporter;
+				if (votingDead == null && votingReporter.name == user_name) {
+					playerHasCalledMeeting = true;
+				}
                 if (playerIsAlive) {
                     voteableArray.push({'name' : user_name, 'color' : playerColor});
                 }
@@ -548,7 +556,7 @@ function doFrameWork() {
             keyCode = -1;
         // Call meeting
         } else if (keyCode == 73 /* I */ && map[playerY][playerX] == 20) {
-            if (meetingTimer == 0) {
+            if (meetingTimer == 0 && playerHasCalledMeeting == false) {
                 websocket.send(JSON.stringify({
                     'type' : 'gameaction',
                     'actiontype' : 'meeting',
@@ -726,7 +734,7 @@ function doFrameWork() {
 	// Draw tablet if player is doing task
 	// If impostor, show cooldowns on side ui
     if (document.getElementById('meetingCooldown') != undefined && gameIsStarted) {
-        document.getElementById('meetingCooldown').textContent = meetingTimer;
+        document.getElementById('meetingCooldown').innerHTML = meetingTimer + (playerHasCalledMeeting ? '&#8212; <strong>You have already called a meeting!</strong>' : '');
     }
 	if (playerRole == 'crewmate' && taskInterval !== -1) {
 		ctx.fillStyle = "#404040";
