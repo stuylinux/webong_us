@@ -600,6 +600,12 @@ function calculateVotes() {
 		});
 
 	}
+	clients.forEach((cData, client, clients) => {
+		if (cData.role == 'impostor') {
+			cData.in_vent = false;
+			cData.cooldowns = [25, 35];
+		}
+	});
 	const voteTallyMessage = JSON.stringify({
 		'type' : 'voteover',
 		'ejected_player' : votedPlayer[0],

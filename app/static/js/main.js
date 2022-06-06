@@ -257,6 +257,7 @@ function startGame() {
                 ctx.fillStyle = '#00ff00';
                 ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
                 window.requestAnimationFrame(ejectScreen);
+                playerInVent = false;
                 setTimeout(() => {
                     if (gameIsStarted) {
                         window.cancelAnimationFrame(requestID);
@@ -653,7 +654,7 @@ function doFrameWork() {
             } else if (inRange(map[nxg_j][nxg_i], -10, -19)) {
                 ctx.fillStyle = '#3f3f3f';
                 ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
-            } else if (gameIsStarted && playerRole == 'crewmate' && inRange(map[nxg_j][nxg_i], 3, 16) && checkInTaskList(nxg_i, nxg_j) !== false) {
+            } else if (gameIsStarted && (playerRole == 'impostor' || (inRange(map[nxg_j][nxg_i], 3, 16) && checkInTaskList(nxg_i, nxg_j) !== false))) {
 				ctx.fillStyle = '#ffff00';
 				ctx.fillRect((nxg_i - currentScrollX) * tileSize, (nxg_j - currentScrollY) * tileSize, tileSize, tileSize);
 			} else if (currentSabotage !== false && currentSabotage >= REACTOR && currentSabotage <= DOORS) {
