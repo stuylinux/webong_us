@@ -163,7 +163,7 @@ ws_s.on('connection' , (ws) => {
 					}
 					break;
 				case 'meeting':
-					if (meetingTimer > 0 || clients.get(ws).alive == false || clients.get(ws)['has_called_meeting'] == true) { break; }
+					if (meetingTimer > 0 || (sabotageType >= 1 && sabotageType <= 2) || clients.get(ws).alive == false || clients.get(ws)['has_called_meeting'] == true) { break; }
 					{
 						let clientData = clients.get(ws);
 						clientData.has_called_meeting = true;
