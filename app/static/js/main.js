@@ -483,7 +483,7 @@ function winningDraw() {
     const centerTileX = Math.trunc(c.clientWidth / tileSize / 2);
     const centerTileY = Math.trunc(c.clientHeight / tileSize / 2);
 	for (let i = 0; i < teamLength; i++) {
-    	drawPlayerScale(centerTileX - (teamLength - 1) + i * 2, centerTileY, 0, 0, winningPlayersList[i].color, winningPlayersList[i].name, 1.5);
+    	drawPlayerScale(centerTileX - (teamLength - 1) + i * 2, centerTileY, 0, 0, winningPlayersList[i].color, winningPlayersList[i].name, 1.5, false);
 	}
 	
 	ctx.fillStyle = 'white';
@@ -750,7 +750,7 @@ function doFrameWork() {
             drawPlayer(
                 otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], 
                 currentScrollX, currentScrollY, otherPlayers[nxg_i].color, 
-                otherPlayers[nxg_i].name
+                otherPlayers[nxg_i].name, otherPlayers[nxg_i].role
             );
             if (otherPlayers[nxg_i].alive == false) {
                 drawPlayer(
@@ -763,11 +763,11 @@ function doFrameWork() {
 	
 	// Draw player
     if (!viewingCams) {
-        drawPlayer(playerX, playerY, currentScrollX, currentScrollY, playerColor, user_name);
+        drawPlayer(playerX, playerY, currentScrollX, currentScrollY, playerColor, user_name, true);
         // Shade player if they are in vent
-        if (playerInVent) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(0, 0, 0, 0.5)', ''); }
+        if (playerInVent) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(0, 0, 0, 0.5)', '', false); }
 	    // If player is dead, draw them lighter
-	    if (!playerIsAlive) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(255, 255, 255, 0.5)', ''); }
+	    if (!playerIsAlive) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(255, 255, 255, 0.5)', '', false); }
     } else {
         ctx.font = "32px Arial";
         ctx.fillStyle = 'red';
@@ -970,7 +970,7 @@ function votingScreen() {
             drawPlayer(basex + j * offsetx, 
                 basey + i * 3, 0, 0, 
                 voteableArray[index].color, 
-                voteableArray[index].name != '__NONE__' ? voteableArray[index].name : 'Nobody!');
+                voteableArray[index].name != '__NONE__' ? voteableArray[index].name : 'Nobody!', false);
             ctx.fillStyle = 'white';
             ctx.font = '12px Arial';
             ctx.fillText(((index + 1) % 10) + '', (basex + j * offsetx) * tileSize - 20, (basey + i * 3) * tileSize + halfTileSize);
@@ -992,7 +992,7 @@ function ejectScreen() {
     if (typeof(ejectedPlayer) != 'undefined' && ejectedPlayer.name != '__NONE__') {
         drawPlayerScale(
             Math.trunc(c.clientWidth / tileSize / 2), Math.trunc(c.clientHeight / tileSize / 2), 
-           0, 0, ejectedPlayer.color, "", 1.5);
+           0, 0, ejectedPlayer.color, "", 1.5, false);
     }
     ctx.font = "36px Arial";
     ctx.fillStyle = 'white';
@@ -1012,18 +1012,18 @@ function drawBody(x, y, scrollx, scrolly, color) {
     ctx.fill();
 }
 
-function drawPlayerScale(x, y, scrollx, scrolly, color, name, scale) {
+function drawPlayerScale(x, y, scrollx, scrolly, color, name, scale, redtext) {
 	ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc((x - scrollx) * tileSize + halfTileSize, (y - scrolly) * tileSize + halfTileSize, halfTileSize * scale, 0, 2 * Math.PI);
     ctx.fill();
     ctx.font = `${ Math.trunc(Math.round(12 * scale)) }px Courier New`;
-    ctx.fillStyle = '#000000';
+    ctx.fillStyle = (playerRole == 'impostor' && redtex) ? '#800020' : '#000000';
     ctx.fillText(name, (x - scrollx) * tileSize + halfTileSize - scale * 4 * name.length, (y - scrolly) * tileSize - 5);   
 }
 
-function drawPlayer(x, y, scrollx, scrolly, color, name) {
-    drawPlayerScale(x, y, scrollx, scrolly, color, name, 1);
+function drawPlayer(x, y, scrollx, scrolly, color, name, redtext) {
+    drawPlayerScale(x, y, scrollx, scrolly, color, name, 1, redtext);
 }
 
 function inRange(x, a, b) {

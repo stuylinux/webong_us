@@ -349,7 +349,7 @@ ws_s.on('connection' , (ws) => {
 			let clientData = clients.get(ws);
 			if (clientData.host && !gameIsStarted && clients.size >= 4) {
 				gameIsStarted = true;
-				let impostorIndexes = (clients.size < 6) ? [randInt(clients.size)] : getDistinctRandomInts(clients.size);
+				let impostorIndexes = (clients.size < 7) ? [randInt(clients.size)] : getDistinctRandomInts(clients.size);
 				let clientsArray = [];
 				clients.forEach((clientData, client, clients) => {
 					clientData.role = 'crewmate';
@@ -443,7 +443,7 @@ ws_s.on('connection' , (ws) => {
 			//clients = new Map();
 			gameTimer = -1;
 			sabotageType = -1;
-		} else {
+		} else if (gameIsStarted == true) {
 			let crewmatesAlive = 0;
 			let numImpostors = 0;
 			clients.forEach((cData, client, clients) => {
