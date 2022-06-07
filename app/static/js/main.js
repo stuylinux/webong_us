@@ -515,16 +515,16 @@ function doFrameWork() {
     if (oldInVent === false && viewingCams === false) {
         // Movement
 		if (globalTimer % moveSpeed == 0) {
-			if (keyCode == 0x57 /* W */ && playerY != 0 && !tileBlocksMvmt(map[playerY - 1][playerX])) {
+			if (keyCode == 0x57 /* W */ && playerY != 0 && !tileBlocksMvmt(map[playerY - 1][playerX], playerX, playerY)) {
 				playerY--;
 				keyCode = -1;
-			} else if (keyCode == 0x41 /* A */ && playerX != 0 && !tileBlocksMvmt(map[playerY][playerX - 1])) {
+			} else if (keyCode == 0x41 /* A */ && playerX != 0 && !tileBlocksMvmt(map[playerY][playerX - 1], playerX, playerY)) {
 				playerX--;
 				keyCode = -1;
-			} else if (keyCode == 0x53 /* S */ && playerY != map.length - 1 && !tileBlocksMvmt(map[playerY + 1][playerX])) {
+			} else if (keyCode == 0x53 /* S */ && playerY != map.length - 1 && !tileBlocksMvmt(map[playerY + 1][playerX], playerX, playerY)) {
 				playerY++;
 				keyCode = -1;
-			} else if (keyCode == 0x44 /* D */ && playerX != map[0].length - 1 && !tileBlocksMvmt(map[playerY][playerX + 1])){
+			} else if (keyCode == 0x44 /* D */ && playerX != map[0].length - 1 && !tileBlocksMvmt(map[playerY][playerX + 1], playerX, playerY)){
 				playerX++;
 				keyCode = -1;
 			} 
