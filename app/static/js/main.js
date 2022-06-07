@@ -165,6 +165,7 @@ function startGame() {
     currentTaskIndex = -1;
 
     viewingCams = false;
+    numCamViewing = 0;
     oldPlayerX = -1;
     oldPlayerY = -1;
     oldInVent = false;
@@ -263,6 +264,8 @@ function startGame() {
                 ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
                 window.requestAnimationFrame(ejectScreen);
                 playerInVent = false;
+                viewingCams = false;
+                numCamViewing = 0;
                 setTimeout(() => {
                     if (gameIsStarted) {
                         window.cancelAnimationFrame(requestID);
@@ -453,6 +456,7 @@ var currentScrollY = Math.max(0, playerX - centerTileOffsetX);
 var nxg_j, nxg_i;
 
 var viewingCams = false;
+var numCamViewing = 0;
 var roomWatching = -1;
 
 var oldPlayerX = -1;
@@ -501,6 +505,8 @@ function nextGameFrame() {
 	globalTimer++;
     requestID = window.requestAnimationFrame(nextGameFrame);
 }
+
+var viewingCamsTempPlayerPos = Array(2);
 
 function doFrameWork() {
 	// Check keyboard input
@@ -565,6 +571,10 @@ function doFrameWork() {
             }
             meetingTimer = 15;
             keyCode = -1;
+        // Viewcams
+        } else if (keyCode == 73 /* I */ && map[playerY][playerX] == 50) {
+            viewingCams = true;
+            keyCode = -1;
         // Sabotage
         } else if (playerRole == 'impostor' && inRange(keyCode, 0x30, 0x39)) {
             if (playerCooldowns[0] == 0) {
@@ -611,6 +621,12 @@ function doFrameWork() {
         if (keyCode == 73 /* I */) {
             viewingCams = false;
             keyCode = -1;
+        } else if (keyCode == 0x41 /* A */) {
+            numCamViewing = (numCamViewing - 1) % 4;
+            keyCode = -1;
+        } else if (keyCode == 0x44 /* D */) {
+            numCamViewing = (numCamViewing + 1) % 4;
+            keyCode = -1;
         }
     }
 
@@ -634,6 +650,19 @@ function doFrameWork() {
     oldInVent = playerInVent;
 
 	// Calc scroll vars 
+    if (viewingCams === true) {
+        viewingCamsTempPlayerPos = [playerX, playerY];
+        switch (numCamViewing) {
+            case 0:
+                break;
+            case 1:
+                break;
+            case 2:
+                break;
+        }
+    } else {
+        viewingCamsTempPlayerPos = [-1, -1];   
+    }
     currentScrollX = Math.max(0, playerX - centerTileOffsetX);
     currentScrollY = Math.max(0, playerY - centerTileOffsetY);
     ctx.clearRect(0, 0, c.clientWidth, c.clientHeight); 
@@ -779,6 +808,10 @@ function doFrameWork() {
         ctx.fillStyle = 'green';
         ctx.font = '36px Arial';
         ctx.fillText(`Lobby (${ otherPlayers.length + 1 }/10)`, c.clientWidth / 2 - 100, c.clientHeight / 8);
+    }
+
+    if (viewingCamsTempPlayerPos[0] != -1 && viewingCamsTempPlayerPos[1] != -1) {
+        [playerX, playerY] = viewingCamsTempPlayerPos;
     }
 }
 
