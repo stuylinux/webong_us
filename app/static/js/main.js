@@ -622,7 +622,7 @@ function doFrameWork() {
             viewingCams = false;
             keyCode = -1;
         } else if (keyCode == 0x41 /* A */) {
-            numCamViewing = (numCamViewing - 1) % 4;
+            numCamViewing = (numCamViewing == 0 ? 4 - 1 : numCamViewing - 1);
             keyCode = -1;
         } else if (keyCode == 0x44 /* D */) {
             numCamViewing = (numCamViewing + 1) % 4;
@@ -654,10 +654,16 @@ function doFrameWork() {
         viewingCamsTempPlayerPos = [playerX, playerY];
         switch (numCamViewing) {
             case 0:
+                [playerX, playerY] = [113, 34];  
                 break;
             case 1:
+                [playerX, playerY] = [72, 43];  
                 break;
             case 2:
+                [playerX, playerY] = [21, 37];
+                break;
+            case 3:
+                [playerX, playerY] = [45, 18];  
                 break;
         }
     } else {
@@ -705,7 +711,7 @@ function doFrameWork() {
         }
     }
     // Black out area's beyond character vision
-    let mapViewSize = playerRole == 'impostor' ? impostorViewSize : crewmateViewSize;
+    let mapViewSize = viewingCams ? (c.clientWidth / tileSize) : (playerRole == 'impostor' ? impostorViewSize : crewmateViewSize);
     let realViewSize = (currentSabotage == 3 && playerRole == 'crewmate' && playerIsAlive) ? darknessViewSize : mapViewSize;
 	for (nxg_j = 0; nxg_j < c.clientHeight / tileSize; nxg_j++) {
 		for (nxg_i = 0; nxg_i < c.clientWidth / tileSize; nxg_i++) {
@@ -754,11 +760,20 @@ function doFrameWork() {
     }
 	
 	// Draw player
-    drawPlayer(playerX, playerY, currentScrollX, currentScrollY, playerColor, user_name);
-    // Shade player if they are in vent
-    if (playerInVent) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(0, 0, 0, 0.5)', ''); }
-	// If player is dead, draw them lighter
-	if (!playerIsAlive) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(255, 255, 255, 0.5)', ''); }
+    if (!viewingCams) {
+        drawPlayer(playerX, playerY, currentScrollX, currentScrollY, playerColor, user_name);
+        // Shade player if they are in vent
+        if (playerInVent) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(0, 0, 0, 0.5)', ''); }
+	    // If player is dead, draw them lighter
+	    if (!playerIsAlive) { drawPlayer(playerX, playerY, currentScrollX, currentScrollY, 'rgba(255, 255, 255, 0.5)', ''); }
+    } else {
+        ctx.font = "32px Arial";
+        ctx.fillStyle = 'red';
+        ctx.fillText(`Viewing Cams... (${ numCamViewing + 1 }/4)`, c.clientWidth / 27 , c.clientHeight / 21);
+        if (!playerIsAlive) {
+            ctx.fillText('You are Dead!', c.clientWidth / 27, c.clientHeight / 21 * 3);
+        }
+    }
 	
 	// Draw tablet if player is doing task
 	// If impostor, show cooldowns on side ui
