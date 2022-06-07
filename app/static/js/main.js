@@ -312,10 +312,12 @@ function startGame() {
                 } else {
                     gameIsStarted = true;
                     playerRole = msg.new_player_data.role;
-                    playerInVent = msg.new_player_data.in_vent;
+                    playerInVent = false;
                     [playerX, playerY] = msg.new_player_data.pos;
                     playerIsAlive = msg.new_player_data.alive;
                     playerCooldowns = msg.new_player_data.cooldowns;
+
+                    viewingCams = false;
 					
 					if (playerRole == 'crewmate') {
                         const meetingTimerDiv = document.createElement('div');
