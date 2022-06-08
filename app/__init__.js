@@ -65,6 +65,7 @@ ws_s.on('connection' , (ws) => {
 		'has_voted' : false,
 		'tasksdone' : false,
 	}
+	if (gameIsStarted) {playerData.tasksdone = true;}
 	clients.set(ws, playerData);
 
 	ws.on('message', (messageString) => {
