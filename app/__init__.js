@@ -168,7 +168,7 @@ ws_s.on('connection' , (ws) => {
 					}
 					break;
 				case 'meeting':
-					if (meetingTimer > 0 || (sabotageType >= 1 && sabotageType <= 2) || clients.get(ws).alive == false || clients.get(ws)['has_called_meeting'] == true) { break; }
+					if (meetingTimer > 0 || (sabotageType >= REACTOR && sabotageType <= O2) || clients.get(ws).alive == false || clients.get(ws)['has_called_meeting'] == true) { break; }
 					{
 						let clientData = clients.get(ws);
 						clientData.has_called_meeting = true;
@@ -194,7 +194,7 @@ ws_s.on('connection' , (ws) => {
 						clients.forEach((cData, client, clients) => {
 							client.send(messageToSend);
 						});
-						if (sabotageType == 1 || sabotageType == 2 || sabotageType == 4) {
+						if (sabotageType == REACTOR || sabotageType == O2 || sabotageType == DOORS) {
 							clearInterval(sabotageInterval);
 							sabotageInterval = -1;
 							sabotageTimer = -1;
