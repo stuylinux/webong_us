@@ -27,6 +27,11 @@ var sabotageTimer;
 var sabotageType = -1;
 var sabotageFixed = [false, false];
 
+const REACTOR = 1;
+const O2 = 2;
+const LIGHTS = 3;
+const DOORS = 4;
+
 var votes;
 
 ws_s.on('connection' , (ws) => {
@@ -180,24 +185,27 @@ ws_s.on('connection' , (ws) => {
 							clients.set(client, clientData);
 						});
 						let bodydata = message.body_data;
-						let messageToSend;
-						if (message.actiontype == 'report') {
-							messageToSend = JSON.stringify({
-								'type' : 'report',
-								'body_data' : bodydata,
-								'reporter' : clients.get(ws),
-							});
-						} else {
-							messageToSend = JSON.stringify({
-								'type' : 'meeting',
-								'body_data' : null,
-								'reporter' : clients.get(ws),
-							});
-						}
+						const messageToSend = JSON.stringify({
+							'type' : message.actiontype,
+							'body_data' : bodydata,
+							'reporter' : clients.get(ws),
+						});
 						console.log(messageToSend);
 						clients.forEach((cData, client, clients) => {
 							client.send(messageToSend);
-						})
+						});
+						if (sabotageType == 1 || sabotageType == 2 || sabotageType == 4) {
+							clearInterval(sabotageInterval);
+							sabotageInterval = -1;
+							sabotageTimer = -1;
+							sabotageType = -1;
+							const endSabMessage = JSON.stringify({
+								'type' : 'sabotage_over',
+							});
+							clients.forEach((cData, client, clients) => {
+								client.send(endSabMessage);
+							});
+						}
 						clearInterval(gameInterval);
 						clearInterval(meetingInterval);
 					}
