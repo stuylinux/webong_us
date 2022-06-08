@@ -751,7 +751,7 @@ function doFrameWork() {
             drawPlayer(
                 otherPlayers[nxg_i].pos[0], otherPlayers[nxg_i].pos[1], 
                 currentScrollX, currentScrollY, otherPlayers[nxg_i].color, 
-                otherPlayers[nxg_i].name, otherPlayers[nxg_i].role
+                otherPlayers[nxg_i].name, otherPlayers[nxg_i].role == 'impostor'
             );
             if (otherPlayers[nxg_i].alive == false) {
                 drawPlayer(
