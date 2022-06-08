@@ -1018,7 +1018,7 @@ function drawPlayerScale(x, y, scrollx, scrolly, color, name, scale, redtext) {
     ctx.arc((x - scrollx) * tileSize + halfTileSize, (y - scrolly) * tileSize + halfTileSize, halfTileSize * scale, 0, 2 * Math.PI);
     ctx.fill();
     ctx.font = `${ Math.trunc(Math.round(12 * scale)) }px Courier New`;
-    ctx.fillStyle = (playerRole == 'impostor' && redtex) ? '#800020' : '#000000';
+    ctx.fillStyle = (playerRole == 'impostor' && redtext) ? '#800020' : '#000000';
     ctx.fillText(name, (x - scrollx) * tileSize + halfTileSize - scale * 4 * name.length, (y - scrolly) * tileSize - 5);   
 }
 
