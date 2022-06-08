@@ -370,6 +370,7 @@ function startGame() {
             case 'meeting_time':
                 meetingTimer = msg.time;
                 break;
+            case 'meeting':
             case 'report':
                 window.cancelAnimationFrame(requestID);
                 requestID = window.requestAnimationFrame(votingScreen);
@@ -377,7 +378,7 @@ function startGame() {
                 voteableArray = [{'name' : '__NONE__', color : '#ffffff'}];
                 votingDead = msg.body_data;
                 votingReporter = msg.reporter;
-				if (votingDead == null && votingReporter.name == user_name) {
+				if (msg.type == 'meeting' && votingReporter.name == user_name) {
 					playerHasCalledMeeting = true;
 				}
                 if (playerIsAlive) {

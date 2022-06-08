@@ -180,11 +180,20 @@ ws_s.on('connection' , (ws) => {
 							clients.set(client, clientData);
 						});
 						let bodydata = message.body_data;
-						const messageToSend = JSON.stringify({
-							'type' : 'report',
-							'body_data' : bodydata,
-							'reporter' : clients.get(ws),
-						});
+						let messageToSend;
+						if (message.actiontype == 'report') {
+							messageToSend = JSON.stringify({
+								'type' : 'report',
+								'body_data' : bodydata,
+								'reporter' : clients.get(ws),
+							});
+						} else {
+							messageToSend = JSON.stringify({
+								'type' : 'meeting',
+								'body_data' : null,
+								'reporter' : clients.get(ws),
+							});
+						}
 						console.log(messageToSend);
 						clients.forEach((cData, client, clients) => {
 							client.send(messageToSend);
