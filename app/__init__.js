@@ -381,8 +381,7 @@ ws_s.on('connection' , (ws) => {
 					let client = clientsArray[impostorIndexes[i]][1];
 					clientData.role = 'impostor';
 					clientData.tasksdone = true;
-					clientData.cooldowns[0] = 25;
-					clientData.cooldowns[1] = 35;
+					cData.cooldowns = [10, 15];
 					//console.log(clientData);
 					//console.log(client);
 					clients.set(client, clientData);
@@ -627,7 +626,7 @@ function calculateVotes() {
 	clients.forEach((cData, client, clients) => {
 		if (cData.role == 'impostor') {
 			cData.in_vent = false;
-			cData.cooldowns = [25, 35];
+			cData.cooldowns = [10, Math.max(cData.cooldowns[1], 15)];
 		}
 	});
 	const voteTallyMessage = JSON.stringify({
