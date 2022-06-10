@@ -381,7 +381,7 @@ ws_s.on('connection' , (ws) => {
 					let client = clientsArray[impostorIndexes[i]][1];
 					clientData.role = 'impostor';
 					clientData.tasksdone = true;
-					cData.cooldowns = [10, 15];
+					clientData.cooldowns = [10, 15];
 					//console.log(clientData);
 					//console.log(client);
 					clients.set(client, clientData);
