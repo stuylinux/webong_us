@@ -4,7 +4,7 @@ const ctx = c.getContext('2d');
 var keyCode = -1;
 var requestID = -1;
 
-const serverIP = window.location.host;
+const serverIP = window.location.hostname;
 const websocketURL = `ws://${serverIP}:47777/ws`;
 
 window.addEventListener('load', () => {
