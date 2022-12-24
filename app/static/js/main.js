@@ -5,7 +5,7 @@ var keyCode = -1;
 var requestID = -1;
 
 const serverIP = window.location.hostname;
-const websocketURL = `ws://${serverIP}:47777/ws`;
+const websocketURL = `wss://${serverIP}:443/ws`;
 
 window.addEventListener('load', () => {
     requestID = window.requestAnimationFrame(promptName);
